@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvim *)",
+      "Bash(stylua *)",
+      "Bash(echo *)",
+      "Bash(make *)",
+      "Bash(git check-ignore *)",
+      "Bash(git ls-tree *)",
+      "Bash(git config *)"
+    ]
+  }
+}
