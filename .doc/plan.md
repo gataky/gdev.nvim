@@ -18,10 +18,12 @@ implement fresh following `.templates/` and `.doc/patterns.md`.
 ## Standing decisions (do not relitigate)
 
 1. **Reuse, don't reinvent.** LSP uses Neovim's built-in `vim.lsp.config`/`vim.lsp.enable`
-   against Godot's editor LSP server (no nvim-lspconfig dependency). Debugging uses
-   `nvim-dap` (+ optional `nvim-dap-ui`) against Godot's DAP server. Syntax uses
-   `nvim-treesitter`. All plugin dependencies are soft: degrade with a clear
-   `vim.notify` warning, never error, when one is missing.
+   against Godot's editor LSP server (no nvim-lspconfig dependency). Syntax uses Neovim's
+   built-in `vim.treesitter`, with **parsers and queries supplied by the user** — not by
+   nvim-treesitter, which is not a dependency (see Phase 2). Debugging uses `nvim-dap`
+   (+ optional `nvim-dap-ui`) against Godot's DAP server, the one remaining plugin
+   dependency. All plugin dependencies are soft: degrade with a clear `vim.notify` warning,
+   never error, when one is missing.
 2. **mini.nvim module architecture.** One self-contained module per feature under
    `lua/gdev/<name>.lua`, each independently `setup()`-able, following `.templates/module.lua`
    exactly (two-table `Gdev<Name>`/`H` shape, `H.get_config()` precedence, disable protocol,
@@ -46,7 +48,7 @@ implement fresh following `.templates/` and `.doc/patterns.md`.
 |---|---|---|---|
 | `gdev.lsp` | `lsp.lua`, `reconnect_lsp.lua`, `inline_hints.lua`, `utils.lua` | `:GdevLspReconnect`, `:GdevLspToggleHints` | S |
 | `gdev.dap` | `dap.lua` | — (users drive nvim-dap directly) | S |
-| `gdev.treesitter` | `tree-sitter.lua`, `queries/gdshader/*` | — | S |
+| `gdev.treesitter` | `tree-sitter.lua` (no query files — see Phase 2) | — | S |
 | `gdev.format` | `formatting.lua` | `:GdevFormat` (manual trigger; bonus over reference) | S |
 | `gdev.server` | `start_editor_server.lua` | `:GdevServerStart [address]` | M |
 | `gdev.run` | `run.lua`, `run_console.lua` | `:GdevRunProject`, `:GdevRunCurrentScene`, `:GdevRunScene {path}`, `:GdevRunPicker`, `:GdevRunConsole` | L |
@@ -198,6 +200,54 @@ Config: `auto_setup = true`, `ensure_installed = { 'gdscript', 'gdshader' }`.
 
 **Tests:** filetype detection for fixture files; `auto_setup = false` leaves treesitter
 untouched; setup without nvim-treesitter installed does not error.
+
+**Phase 2 outcome (done).** The approach above was replaced: **nvim-treesitter is not a
+dependency at all.** The module drives Neovim's built-in `vim.treesitter`, and parsers plus
+queries are the user's to provide (this project's author installs them with a `tree-sitter`
+CLI script into `stdpath('data')/site/{parser,queries}`). Consequences:
+
+- **Config is `highlight = true`, `fold = false`.** `auto_setup` and `ensure_installed` are
+  gone: there is nothing to auto-configure and nothing this module can install. Neovim ships
+  no parser installer.
+- **Parser resolution is a real problem the plan missed.** The `gdresource` grammar is
+  published under two names — `godot_resource` by nvim-treesitter, `gdresource` when built
+  straight from the grammar repo. `H.lang_candidates` tries both, and the winner is passed to
+  `vim.treesitter.language.register()` so `get_parser()`, `foldexpr()` and `:InspectTree`
+  resolve it too. An existing registration by the user wins over both candidates.
+- `vim.treesitter.language.add(lang)` is the documented parser probe: it returns `true`/`nil`
+  rather than raising, and caches, so calling it per buffer is cheap. `vim.treesitter.start()`
+  *does* raise when the parser is missing — pcall it.
+- **Starting highlighting twice is not idempotent.** `highlighter.new()` overwrites the
+  registry entry without destroying the previous highlighter, leaving it attached to the
+  parser. Guarded by checking `vim.treesitter.highlighter.active[buf]`, which also detects
+  highlighting somebody else started. There is no public predicate for this.
+- `setup()` attaches already-loaded Godot buffers, because a lazy-loaded setup runs after the
+  first Godot file is open and those buffers never see `FileType`.
+- `GdevTreesitter.parser_status()` exists for Phase 9: it reports, per Godot filetype, the
+  parser in use or the one to install. It deliberately keeps working while the module is
+  disabled, since that is when it gets asked.
+- Filetypes added: `.gdshaderinc` → `gdshader`, `project.godot` → `gdresource`. Generated files
+  (`.import`, `.escn`) are left alone — `.import` is too broad an extension to claim globally.
+- No query files are shipped. The user's pipeline fetches queries alongside parsers, and a
+  parser with no `highlights.scm` loads fine while highlighting nothing — a failure mode worth
+  knowing about when a Godot file looks unhighlighted.
+
+**Two findings for later phases:**
+
+- **Phase 4 must not blindly force spaces.** Neovim bundles `ftplugin/gdscript.vim`, which sets
+  `noexpandtab tabstop=4 softtabstop=0 shiftwidth=0` unless `g:gdscript_recommended_style = 0`
+  — tabs, matching Godot's own editor default. The reference plugin claims Godot wants 4
+  spaces and forces `expandtab`, which fights the bundled ftplugin. Decide deliberately and
+  document it; do not just copy the reference.
+- That same ftplugin sets an indent-based `foldexpr`, so `fold = true` here *replaces* working
+  folding rather than adding it. Hence the default of `false`.
+
+**Test note.** A Godot parser cannot be faked: the loader looks for a `tree_sitter_<lang>`
+symbol, so renaming a bundled parser to `gdshader.so` fails to load. Positive paths stub
+`vim.treesitter`; negative paths run unstubbed against a runtime that genuinely has no Godot
+parser. Also, Neovim's own ftplugins for `help`, `lua`, `markdown` and `query` call
+`vim.treesitter.start()` with no arguments, so a stub that records calls must filter to the
+ones this module makes (which always pass a buffer and language) or it will catch Neovim's.
 
 ## Phase 3 — `gdev.dap`
 
@@ -358,7 +408,9 @@ failing-URL case driving the browser fallback (browser opener stubbed). Cache ev
   (`_G.GdevLsp` etc.) when present, falling back to defaults. Document this sanctioned
   deviation from the module template in the module header.
 - Sections (mirror reference): Godot binary + version (warn < 4.3); plugin deps
-  (nvim-treesitter, nvim-dap, nvim-dap-ui) as warnings not errors; editor LSP port probe and
+  (nvim-dap, nvim-dap-ui) as warnings not errors; treesitter parsers via
+  `GdevTreesitter.parser_status()` (warn per missing parser, with the name to install, since
+  nvim-treesitter is not a dependency — see Phase 2); editor LSP port probe and
   DAP port probe (`nc -z`, skip gracefully when absent); editor server target + listening state;
   docs renderer/source + `curl` presence; formatter executable presence with install pointers.
 - **C# seam:** build sections as an internal registry list so a C# section can be appended
@@ -413,7 +465,8 @@ Every user-visible capability of godotdev.nvim minus C#:
       suppressed
 - [x] LSP reconnect command for all Godot buffers
 - [x] Inlay hints (opt-in, capability-gated, per-buffer toggle command)
-- [ ] gdshader filetype + treesitter highlighting; gdscript parser ensured
+- [x] gdshader filetype + treesitter highlighting (built-in `vim.treesitter`; parsers are
+      user-supplied rather than installed, and `parser_status()` reports what is missing)
 - [ ] DAP: launch-scene debugging; dap-ui auto open/close
 - [ ] Run: project / current scene / scene by path / picker; script→scene resolution with
       multi-match picker
