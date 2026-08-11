@@ -1,1 +1,113 @@
+*gdev.lsp* Godot editor language server
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                       *GdevLsp*
+Features:
+- Attaches GDScript and shader buffers to the language server built into a
+  running Godot editor, over TCP. No separate language-server binary is
+  involved.
+- |GdevLsp.reconnect()| re-attempts attachment in every open Godot buffer,
+  for when the editor was started or restarted after the files were opened.
+- Opt-in inlay hints, gated on the editor advertising support, with a
+  per-buffer toggle in |GdevLsp.toggle_inlay_hints()|.
+- Works around two Godot quirks: it advertises `textDocument/typeDefinition`
+  but answers the request with an error, and it reports unimplemented
+  methods as `window/showMessage` notifications instead of error responses.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.lsp').setup({})` (replace `{}`
+with your `config` table). It will create global Lua table `GdevLsp` which
+you can use for scripting or manually (with `:lua GdevLsp.*`).
+
+See |GdevLsp.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevlsp_config` which should have same structure as `GdevLsp.config`.
+
+# Requirements ~
+
+The Godot editor has to be running with its language server enabled (Editor
+Settings > Network > Language Server).
+
+The server is registered under the `gdscript` |lsp-config| name, replacing
+any config already using it (one from 'nvim-lspconfig', say). Sharing the
+name is deliberate: it is what stops a second client attaching to the same
+buffer. Note that Neovim derives the client name from the config name, so
+clients report as `gdscript`.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevlsp_disable` (globally) or `vim.b.gdevlsp_disable`
+(for a buffer) to `true`.
+
+------------------------------------------------------------------------------
+                                                               *GdevLsp.setup()*
+                           `GdevLsp.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevLsp.config|.
+
+Usage ~
+>lua
+  require('gdev.lsp').setup() -- use default config
+  -- OR
+  require('gdev.lsp').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                                *GdevLsp.config*
+                                `GdevLsp.config`
+Defaults ~
+>lua
+  GdevLsp.config = {
+    -- Host the Godot editor's language server listens on
+    host = '127.0.0.1',
+
+    -- Port of that server, matching Editor Settings > Network > Language Server
+    port = 6005,
+
+    -- Whether to show inlay hints in attached buffers. Has no effect unless the
+    -- running Godot build advertises `textDocument/inlayHint`, which not all do.
+    inlay_hints = false,
+  }
+<
+------------------------------------------------------------------------------
+                                                           *GdevLsp.reconnect()*
+                             `GdevLsp.reconnect`()
+Re-attempt language server attachment in all Godot buffers
+
+Use after starting or restarting the Godot editor: buffers opened while its
+server was unreachable have no client, and this gives them another attempt.
+Buffer contents are untouched, so unsaved changes and undo history survive.
+
+Buffers of every Godot filetype are reported, including `gdresource`
+(`.tscn` / `.tres`) ones that the default config does not attach to, since
+attachment ultimately depends on the |lsp-config| in effect.
+
+Return ~
+`(table)` Array of buffer ids that were considered for attachment.
+
+------------------------------------------------------------------------------
+                                                  *GdevLsp.toggle_inlay_hints()*
+                     `GdevLsp.toggle_inlay_hints`({buf_id})
+Toggle inlay hints in a buffer
+
+Independent of `config.inlay_hints`, which only decides the initial state of
+a buffer when its client attaches.
+
+Refuses to act unless some attached client advertises
+`textDocument/inlayHint`; enabling hints no server can produce would report
+success and then show nothing.
+
+Parameters ~
+{buf_id} `(integer|nil)` Buffer handle, or 0 / `nil` for current buffer.
+
+Return ~
+`(boolean|nil)` Whether hints are now shown, or `nil` if no attached
+  server supports them.
+
+
  vim:tw=78:ts=8:noet:ft=help:norl:
