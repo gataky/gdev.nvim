@@ -31,11 +31,21 @@ if #vim.api.nvim_list_uis() == 0 then
 end
 ```
 
-The real file also pins the colorscheme (via `mini.hues`), `'termguicolors'`, `'ruler'`, and
-`'statusline'` inside that same headless block. Committed reference screenshots capture all of
-these, and Neovim's defaults for them drift between versions — without pinning,
-`child.expect_screenshot()` fails across the CI version matrix for reasons unrelated to the code
-under test. Keep those lines.
+The real file does two more things inside that same headless block. Keep both.
+
+**Hermetic 'runtimepath'.** It strips `stdpath('config')` and `stdpath('data')/site` from
+'runtimepath', clears 'packpath', and *prepends* (`rtp^=`) rather than appends `deps/mini.nvim`.
+`--noplugin` does not keep this machine's Neovim config off 'runtimepath', so a locally installed
+mini.nvim otherwise wins over `deps/mini.nvim` and local runs silently test a different version
+than CI. This applies to the process running `MiniTest.run()` and `mini.doc.generate()`; the child
+processes are already hermetic because mini.test starts them with `--clean`.
+
+**Pinned appearance.** It pins the colorscheme (via `mini.hues`), `'termguicolors'`, `'ruler'`, and
+`'statusline'`. Committed reference screenshots capture all of these, and Neovim's defaults for them
+drift between versions — without pinning, `child.expect_screenshot()` fails across the CI version
+matrix for reasons unrelated to the code under test.
+
+Both are guarded by cases in `tests/test_infrastructure.lua`.
 
 `Makefile`:
 
@@ -53,8 +63,11 @@ deps/mini.nvim:
 
 gendoc: deps/mini.nvim
 	nvim --headless --noplugin -u ./scripts/minimal_init.lua \
-		-c "lua require('mini.doc').generate()" -c "qa!"
+		-c "lua require('mini.doc').setup(); require('mini.doc').generate()" -c "qa!"
 ```
+
+`gendoc` has to call `setup()` before `generate()`: the `---@eval` blocks that render config
+defaults into help reference the global `MiniDoc`, which only exists once the module is set up.
 
 ## Suite shape
 
@@ -88,7 +101,7 @@ Mirror mini.nvim's baseline — every module suite has at least:
 - `child.expect_screenshot()` for anything visual (highlights, floating windows, UI). Screenshots
   are committed reference files; regenerate deliberately, never blindly.
 - Timing: never hardcode sleeps — scale with `helpers.get_time_const()` and set
-  `n_retry = helpers.get_n_retry(n)` so CI (slow, especially macOS/Windows) stays green.
+  `n_retry = helpers.get_n_retry(n)` so CI (slow, especially macOS) stays green.
 - Validation-error tests match with `vim.pesc(name) .. '.*' .. vim.pesc(type)`.
 - Prefer asserting observable effects (buffer lines, cursor, marks, screenshots) over internals.
   `H` is private; tests must not reach into it.

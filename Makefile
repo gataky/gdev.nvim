@@ -24,10 +24,12 @@ test_%: deps/mini.nvim
 			-c "lua MiniTest.run_file('tests/$@.lua')" ; \
 	done
 
-# Regenerate 'doc/gdev.txt' from module annotations
+# Regenerate 'doc/gdev.txt' from module annotations. `setup()` has to run first:
+# the `---@eval` blocks that render config defaults into help reference the
+# global `MiniDoc`, which only exists once the module is set up.
 gendoc: deps/mini.nvim
 	$(NVIM_EXEC) --headless --noplugin -u ./scripts/minimal_init.lua \
-		-c "lua require('mini.doc').generate()" -c "qa!"
+		-c "lua require('mini.doc').setup(); require('mini.doc').generate()" -c "qa!"
 
 format:
 	stylua .

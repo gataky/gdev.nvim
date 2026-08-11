@@ -33,7 +33,7 @@ T['child process']['can resolve `gdev` namespace'] = function()
   expect.match(err, 'module .*not found')
 end
 
-T['child process']['loads mini.test from `deps`'] = function() eq(child.lua_get('type(_G.MiniTest)'), 'table') end
+T['child process']['loads mini.test'] = function() eq(child.lua_get('type(_G.MiniTest)'), 'table') end
 
 T['child process']['pins appearance for reference screenshots'] = function()
   -- Reference screenshots are committed, so anything they capture has to be
@@ -42,6 +42,27 @@ T['child process']['pins appearance for reference screenshots'] = function()
   eq(child.o.termguicolors, true)
   eq(child.o.background, 'dark')
   eq(child.o.ruler, false)
+end
+
+-- Asserted in this process, not a child: mini.test starts its children with
+-- `--clean`, so they are hermetic for free. This process is not — it is where
+-- mini.test and mini.doc get required, with this machine's config on
+-- 'runtimepath' (`--noplugin` does not remove it). See 'scripts/minimal_init.lua'.
+T['test runner'] = new_set()
+
+T['test runner']['loads mini.nvim from `deps`'] = function()
+  -- A locally installed mini.nvim shadowing `deps/` would mean local runs and
+  -- CI silently test against different versions
+  expect.match(debug.getinfo(MiniTest.run, 'S').source, vim.pesc('deps/mini.nvim/lua/mini/test.lua'))
+end
+
+T['test runner']['keeps user directories off `runtimepath`'] = function()
+  local user_dirs = { vim.fn.stdpath('config'), vim.fn.stdpath('data') .. '/site' }
+  local leaked = vim.tbl_filter(function(dir)
+    return vim.iter(user_dirs):any(function(user_dir) return vim.startswith(dir, user_dir) end)
+  end, vim.opt.rtp:get())
+
+  eq(leaked, {})
 end
 
 T['helpers'] = new_set()
