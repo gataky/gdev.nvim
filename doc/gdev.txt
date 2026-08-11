@@ -110,4 +110,134 @@ Return ~
   server supports them.
 
 
+==============================================================================
+------------------------------------------------------------------------------
+*gdev.treesitter* Treesitter for Godot files
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                *GdevTreesitter*
+Features:
+- Teaches Neovim the Godot file names it does not recognize on its own, so
+  `.gdshaderinc` and `project.godot` get a filetype like every other Godot
+  file.
+- Starts |vim.treesitter| highlighting in Godot buffers whose parser is
+  installed, and leaves the rest on regular syntax highlighting rather than
+  erroring. See |GdevTreesitter.attach()|.
+- Resolves the parser a filetype should use, which matters for `gdresource`:
+  the same grammar ships as `gdresource` and as `godot_resource` depending on
+  where it came from. The winner is registered with
+  |vim.treesitter.language.register()| so `vim.treesitter.get_parser()`,
+  |vim.treesitter.foldexpr()| and `:InspectTree` all agree.
+- Optional treesitter folding.
+- |GdevTreesitter.parser_status()| reports which Godot parsers are missing.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.treesitter').setup({})`
+(replace `{}` with your `config` table). It will create global Lua table
+`GdevTreesitter` which you can use for scripting or manually (with
+`:lua GdevTreesitter.*`).
+
+See |GdevTreesitter.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevtreesitter_config` which should have same structure as
+`GdevTreesitter.config`.
+
+# Filetypes ~
+
+Neovim already detects `.gd`, `.gdshader`, `.tscn` and `.tres`. Added here:
+
+- `.gdshaderinc` as `gdshader`
+- `project.godot` as `gdresource`
+
+Deliberately short. Godot's generated files (`.import`, `.escn`) are left
+alone: they are rarely edited by hand, and claiming an extension as broad as
+`.import` for every project on the machine is not this plugin's business.
+Anything added here loses to a `vim.filetype.add()` call of your own, since
+the later registration wins.
+
+# Parsers ~
+
+This module does not install anything. Neovim ships no parser installer and
+no Godot grammars, so `gdscript`, `gdshader` and `gdresource` parsers have to
+be on 'runtimepath' under `parser/<lang>.so`, put there by 'nvim-treesitter',
+a package manager, or the `tree-sitter` CLI.
+
+Queries matter as much as parsers. A parser with no `highlights.scm` on
+'runtimepath' loads without complaint and highlights nothing, which looks
+exactly like this module doing nothing. |GdevTreesitter.parser_status()|
+reports parsers; `:InspectTree` is the quickest way to tell a missing query
+from a missing parser.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevtreesitter_disable` (globally) or
+`vim.b.gdevtreesitter_disable` (for a buffer) to `true`.
+
+------------------------------------------------------------------------------
+                                                        *GdevTreesitter.setup()*
+                        `GdevTreesitter.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevTreesitter.config|.
+
+Usage ~
+>lua
+  require('gdev.treesitter').setup() -- use default config
+  -- OR
+  require('gdev.treesitter').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                         *GdevTreesitter.config*
+                            `GdevTreesitter.config`
+Defaults ~
+>lua
+  GdevTreesitter.config = {
+    -- Whether to start treesitter highlighting in Godot buffers
+    highlight = true,
+
+    -- Whether to fold Godot buffers with |vim.treesitter.foldexpr()|. Off by
+    -- default: it claims 'foldmethod' and 'foldexpr' in every window showing the
+    -- buffer, needs a `folds.scm` query to do anything, and displaces the
+    -- indent-based folding Neovim's bundled `gdscript` ftplugin already sets up.
+    fold = false,
+  }
+<
+------------------------------------------------------------------------------
+                                                       *GdevTreesitter.attach()*
+                       `GdevTreesitter.attach`({buf_id})
+Start treesitter in a Godot buffer
+
+Called for every Godot buffer on |FileType|; useful directly only when
+driving a buffer this module has not seen.
+
+A buffer that already has a highlighter is left alone, whether this module
+started it or something else did. Starting twice would register a second
+highlighter against the same parser without tearing down the first.
+
+Parameters ~
+{buf_id} `(integer|nil)` Buffer handle, or 0 / `nil` for current buffer.
+
+Return ~
+`(string|nil)` Parser language that was started, or `nil` when the buffer
+  is not a Godot buffer or its parser is not installed.
+
+------------------------------------------------------------------------------
+                                                *GdevTreesitter.parser_status()*
+                        `GdevTreesitter.parser_status`()
+Report which Godot parsers are installed
+
+Answers "why is this file not highlighted": a `false` here means no parser on
+'runtimepath', which no amount of configuration fixes. Note that a `true`
+says nothing about queries — see the parser notes in |GdevTreesitter|.
+
+Return ~
+`(table)` Map of Godot filetype to `{ lang = string, available = boolean }`,
+  where `lang` is the parser in use or, when unavailable, the one to install.
+
+
  vim:tw=78:ts=8:noet:ft=help:norl:
