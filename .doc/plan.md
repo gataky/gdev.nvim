@@ -34,8 +34,11 @@ implement fresh following `.templates/` and `.doc/patterns.md`.
 4. **Minor duplication between modules is fine** (e.g. project-root discovery in both `run`
    and `scenetree`). Module self-containment wins over DRY, per mini.nvim philosophy. Keep
    duplicated helpers small and identical in shape.
-5. **Target Neovim 0.11+, Godot 4.x** (warn below 4.3 in health), macOS/Linux/Windows.
-   Windows LSP transport uses `ncat` (built-in `vim.lsp.rpc.connect` elsewhere).
+5. **Target Neovim 0.11+, Godot 4.x** (warn below 4.3 in health), **macOS and Linux only**.
+   Windows and WSL are out of scope: no `ncat` transport, no named pipes, no WSL bridge, no
+   `has('win32')` branches. The reference carries all of that; we deliberately do not. This
+   removes the one platform none of us can test, so assume a Unix-like filesystem, `/tmp`, and
+   Unix domain sockets throughout.
 
 ## Target module map
 
@@ -129,7 +132,7 @@ Config (defaults): `host = '127.0.0.1'`, `port = 6005`, `inlay_hints = false`.
 - Register via `vim.lsp.config['gdscript']` + `vim.lsp.enable('gdscript')`: name
   `godot_editor`, filetypes `{ 'gd', 'gdscript', 'gdshader', 'gdscript3' }`, root markers
   `{ 'project.godot', '.git' }`.
-- Transport: `vim.lsp.rpc.connect(host, port)`; on Windows `{ 'ncat', host, port }`.
+- Transport: `vim.lsp.rpc.connect(host, port)`.
 - Capabilities tweak: drop `textDocument.typeDefinition` (Godot advertises it but errors).
 - `on_attach`: suppress the `window/showMessage` spam `Method not found: godot/reloadScript`
   by wrapping the client handler (reference: `utils.lua`); enable buffer inlay hints when
@@ -142,6 +145,41 @@ Config (defaults): `host = '127.0.0.1'`, `port = 6005`, `inlay_hints = false`.
 **Tests:** config validation; commands exist; reconnect walks only Godot buffers (fixture
 buffers with mixed filetypes); hint toggle no-ops gracefully. No live server needed — assert
 registration state (`vim.lsp.config.gdscript`) rather than a live session.
+
+**Phase 1 outcome (done).** Three points above did not survive contact with Neovim 0.11+, and the
+module implements the *intent* instead. Later phases should assume the corrected facts:
+
+- **`capabilities.textDocument.typeDefinition = nil` is a no-op.** Client capabilities are
+  deep-merged over `vim.lsp.protocol.make_client_capabilities()` (`vim/lsp/client.lua`), so a key
+  removed from the passed table is restored by the merge. What actually stops the request being
+  routed to Godot is clearing the *server* flag in `on_attach`:
+  `client.server_capabilities.typeDefinitionProvider = nil`, since `Client:supports_method()`
+  consults `server_capabilities`. Implemented that way.
+- **`name = 'godot_editor'` inside the config is ignored.** `vim.lsp.config`'s resolver forcibly
+  assigns `resolved_config.name = <config key>`, so clients report as `gdscript`. Keeping the
+  `gdscript` key was chosen over the nicer name because sharing the key with nvim-lspconfig's
+  `gdscript` config is what prevents a second client attaching to the same buffer.
+- **`reconnect()` does not `:edit`.** Re-running `vim.lsp.enable()` is Neovim's own path for
+  activating a server in already-open buffers (it replays the `FileType` hook via `doautoall`), so
+  no buffer is reloaded — unsaved changes, undo history and cursor survive, and there is no `E37`
+  on modified buffers. A test asserts contents are untouched.
+- Message suppression is declared as `handlers['window/showMessage']` in the config rather than
+  patched onto `client.handlers` in `on_attach`, which makes re-`setup()` idempotent instead of
+  stacking one filter per call.
+- `H.get_config(config, buf_id)` takes an optional buffer: LSP callbacks run for buffers that are
+  not current, so `vim.b.gdevlsp_config` has to be read off the target buffer. Modules with
+  event-driven entry points should use the same two-argument shape.
+- Fixtures live in `tests/dir-lsp/` (`project.godot`, `script.gd`). Fake clients and `vim.lsp`
+  stubs are built inside the child (functions cannot cross the RPC boundary), and whole-config
+  reads like `child.lua_get('vim.lsp.config.gdscript')` fail for the same reason — fetch fields
+  individually.
+
+**Also fixed in this phase (infrastructure, separate commit).** `scripts/minimal_init.lua` was not
+hermetic: `--noplugin` leaves this machine's Neovim config on 'runtimepath', so a locally installed
+mini.nvim shadowed `deps/mini.nvim` and local runs tested a different version than CI. It now
+strips user directories, clears 'packpath', and prepends `deps/mini.nvim`. `make gendoc` also had
+to start calling `require('mini.doc').setup()` before `generate()`, or every `---@eval` config block
+errors on a nil `MiniDoc` global. Both are guarded in `tests/test_infrastructure.lua`.
 
 ## Phase 2 — `gdev.treesitter`
 
@@ -210,15 +248,14 @@ disable protocol respected.
 **Goal:** Godot's "external editor" integration can open files in this Neovim instance.
 **Behavior spec:** `start_editor_server.lua`.
 
-Config: `address = nil` (nil → `v:servername` if listening, else platform default:
-`/tmp/godot.nvim` or `\\.\pipe\godot.nvim`), `autostart = false`,
-`remove_stale_socket = true`.
+Config: `address = nil` (nil → `v:servername` if listening, else `/tmp/godot.nvim`),
+`autostart = false`, `remove_stale_socket = true`.
 
 - `:GdevServerStart [address]` starts `vim.fn.serverstart` on the resolved address; if a
   server is already listening on the target, INFO and reuse; if listening elsewhere, WARN and
   skip.
-- Stale-socket recovery (macOS/Linux, pipe addresses only): if the socket file exists but
-  `sockconnect` fails, unlink it before starting; notify what was removed.
+- Stale-socket recovery (socket-path addresses only, not `host:port`): if the socket file exists
+  but `sockconnect` fails, unlink it before starting; notify what was removed.
 - `autostart = true`: attempt start during `setup()` and on `BufReadPost *.gd` (extension
   list configurable — C# seam).
 
@@ -322,9 +359,8 @@ failing-URL case driving the browser fallback (browser opener stubbed). Cache ev
   deviation from the module template in the module header.
 - Sections (mirror reference): Godot binary + version (warn < 4.3); plugin deps
   (nvim-treesitter, nvim-dap, nvim-dap-ui) as warnings not errors; editor LSP port probe and
-  DAP port probe (`nc`/`ncat -z`, skip gracefully when absent); editor server target +
-  listening state; Windows `ncat` presence (error); WSL2 detection + bridge pointer; docs
-  renderer/source + `curl` presence; formatter executable presence with install pointers.
+  DAP port probe (`nc -z`, skip gracefully when absent); editor server target + listening state;
+  docs renderer/source + `curl` presence; formatter executable presence with install pointers.
 - **C# seam:** build sections as an internal registry list so a C# section can be appended
   later.
 
@@ -373,10 +409,10 @@ tooling *checks* only (LSP stays user-managed) plus netcoredbg DAP wiring — se
 
 Every user-visible capability of godotdev.nvim minus C#:
 
-- [ ] GDScript LSP auto-attach (TCP; ncat on Windows); typeDefinition suppressed;
-      reloadScript message spam suppressed
-- [ ] LSP reconnect command for all Godot buffers
-- [ ] Inlay hints (opt-in, capability-gated, per-buffer toggle command)
+- [x] GDScript LSP auto-attach over TCP; typeDefinition suppressed; reloadScript message spam
+      suppressed
+- [x] LSP reconnect command for all Godot buffers
+- [x] Inlay hints (opt-in, capability-gated, per-buffer toggle command)
 - [ ] gdshader filetype + treesitter highlighting; gdscript parser ensured
 - [ ] DAP: launch-scene debugging; dap-ui auto open/close
 - [ ] Run: project / current scene / scene by path / picker; script→scene resolution with
@@ -389,5 +425,5 @@ Every user-visible capability of godotdev.nvim minus C#:
       browser fallback, missing-symbol feedback modes
 - [ ] Autoformat on save (gdscript-formatter default with `--reorder-code`, gdformat
       alternative, argv override, disable); 4-wide indent buffer defaults
-- [ ] `:checkhealth gdev` covering all of the above + Windows/WSL2 guidance
+- [ ] `:checkhealth gdev` covering all of the above
 - [ ] README + vimdoc parity with the reference's documented workflows
