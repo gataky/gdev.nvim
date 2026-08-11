@@ -24,6 +24,23 @@ Two tables, strict visibility split:
 - `H` — private helpers. No doc annotations required; plain comments where intent is not obvious.
   Anything in `H` can change freely between versions.
 
+`H` is not empty to start with. It comes from
+
+```lua
+local H = require('gdev.util').new('<name>', Gdev<Name>)
+```
+
+which pre-binds `error`, `notify`, `check_type`, `validate_buf_id`, `is_disabled`, `get_config`
+and `map` to this module's name and config table. Modules add their own helpers to the same
+table, so call sites read as if everything were defined locally. This is a deliberate departure
+from mini.nvim, which restates that boilerplate per module so each one can be copied out
+standalone — not a property this plugin needs.
+
+`lua/gdev/util.lua` is internal: no `setup()`, no global, no vimdoc. Put something there only
+when a second module genuinely needs it and can use it unchanged; anything a module might
+reasonably want to do differently (config validation, augroups, user commands) stays in the
+module, where the differences are visible.
+
 Nothing else is module-level local. State lives in `H` (e.g. `H.cache`, `H.timer`) so it is
 inspectable during debugging via upvalues and consistent across modules.
 

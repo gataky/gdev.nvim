@@ -64,7 +64,7 @@
 
 -- Module definition ==========================================================
 local GdevTreesitter = {}
-local H = {}
+local H = require('gdev.util').new('treesitter', GdevTreesitter)
 
 --- Module setup
 ---
@@ -207,15 +207,6 @@ H.attach_open_buffers = function()
   end
 end
 
-H.is_disabled = function() return vim.g.gdevtreesitter_disable == true or vim.b.gdevtreesitter_disable == true end
-
-H.get_config = function(config, buf_id)
-  -- Read the buffer variable off `buf_id`: autocommand callbacks run for a
-  -- buffer that is not necessarily the visible one
-  local buf_config = vim.b[buf_id or 0].gdevtreesitter_config or {}
-  return vim.tbl_deep_extend('force', GdevTreesitter.config, buf_config, config or {})
-end
-
 -- Parsers --------------------------------------------------------------------
 H.resolve_lang = function(filetype)
   local candidates = H.lang_candidates[filetype]
@@ -263,24 +254,6 @@ H.enable_folding = function(buf_id)
     vim.api.nvim_set_option_value('foldmethod', 'expr', { win = win_id })
     vim.api.nvim_set_option_value('foldexpr', 'v:lua.vim.treesitter.foldexpr()', { win = win_id })
   end
-end
-
--- Utilities ------------------------------------------------------------------
-H.error = function(msg) error('(gdev.treesitter) ' .. msg, 0) end
-
-H.notify = function(msg, level) vim.notify('(gdev.treesitter) ' .. msg, vim.log.levels[level or 'INFO']) end
-
-H.check_type = function(name, val, ref, allow_nil)
-  if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then return end
-  H.error(string.format('`%s` should be %s, not %s', name, ref, type(val)))
-end
-
-H.validate_buf_id = function(buf_id)
-  if buf_id == nil or buf_id == 0 then return vim.api.nvim_get_current_buf() end
-  if not (type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)) then
-    H.error('`buf_id` should be `nil` or valid buffer id, not ' .. vim.inspect(buf_id))
-  end
-  return buf_id
 end
 
 return GdevTreesitter

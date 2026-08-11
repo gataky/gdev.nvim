@@ -35,11 +35,14 @@ Then:
 ## What must survive instantiation
 
 - The two-table shape: public `Gdev<Name>` + private `H`, returned table last line.
+- `H` comes from `require('gdev.util').new('<name>', Gdev<Name>)`. That supplies `error`,
+  `notify`, `check_type`, `validate_buf_id`, `is_disabled`, `get_config` and `map`, already bound
+  to the module's name and config. Add module helpers to the same table; don't redefine those.
 - `setup()` step order: export global → `H.setup_config` → `H.apply_config` → behavior → highlighting.
 - Section dividers (`====`/`----`) and their ordering.
 - Config precedence: defaults < `setup()` config < `vim.b.gdev<name>_config` < per-call `opts`,
   always resolved through `H.get_config()` at call time — never read `Gdev<Name>.config` directly.
+  Pass `buf_id` as the second argument from any callback that may run for a non-current buffer.
 - `H.check_type` validation of every config field in `H.setup_config`.
 - The disabling protocol (`vim.g`/`vim.b` `..._disable`) checked at every user-facing entry point.
-- Prefixed errors via `H.error` (`(gdev.<name>) ...` message, level 0).
 - Doc annotations (`---`) on all public functions; `---@eval` block around config defaults.

@@ -33,9 +33,15 @@ implement fresh following `.templates/` and `.doc/patterns.md`.
    Telescope for scene pickers; we deliberately improve on this — `vim.ui.select` works
    everywhere and users with Telescope/fzf-lua get their picker via ui-select adapters. This is
    the one sanctioned deviation from parity.
-4. **Minor duplication between modules is fine** (e.g. project-root discovery in both `run`
-   and `scenetree`). Module self-containment wins over DRY, per mini.nvim philosophy. Keep
-   duplicated helpers small and identical in shape.
+4. **Share helpers rather than repeating them.** `lua/gdev/util.lua` holds what every module
+   needs — `error`, `notify`, `check_type`, `validate_buf_id`, `is_disabled`, `get_config`,
+   `map` — bound per module by `require('gdev.util').new('<name>', Gdev<Name>)`. Domain helpers
+   a second module can use unchanged belong there too: project-root discovery and scene
+   resolution, which `run` (Phase 6) and `scenetree` (Phase 7) both need, are the obvious
+   candidates — the reference duplicates roughly 130 lines across those two files. This
+   overrides mini.nvim's habit of restating boilerplate per module, which only pays off for a
+   plugin whose modules get copied out one at a time. Things a module might reasonably want to
+   do differently (config validation, augroups, user commands) stay in the module.
 5. **Target Neovim 0.11+, Godot 4.x** (warn below 4.3 in health), **macOS and Linux only**.
    Windows and WSL are out of scope: no `ncat` transport, no named pipes, no WSL bridge, no
    `has('win32')` branches. The reference carries all of that; we deliberately do not. This

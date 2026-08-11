@@ -44,7 +44,7 @@
 
 -- Module definition ==========================================================
 local GdevLsp = {}
-local H = {}
+local H = require('gdev.util').new('lsp', GdevLsp)
 
 --- Module setup
 ---
@@ -188,15 +188,6 @@ H.create_user_commands = function()
   })
 end
 
-H.is_disabled = function() return vim.g.gdevlsp_disable == true or vim.b.gdevlsp_disable == true end
-
-H.get_config = function(config, buf_id)
-  -- Read the buffer variable off `buf_id` rather than the current buffer: LSP
-  -- callbacks run for a buffer that is not necessarily the visible one
-  local buf_config = vim.b[buf_id or 0].gdevlsp_config or {}
-  return vim.tbl_deep_extend('force', GdevLsp.config, buf_config, config or {})
-end
-
 -- Server registration --------------------------------------------------------
 H.register_server = function(config)
   vim.lsp.config[H.server_name] = {
@@ -251,24 +242,6 @@ H.supports_inlay_hints = function(buf_id)
     if client:supports_method('textDocument/inlayHint') then return true end
   end
   return false
-end
-
--- Utilities ------------------------------------------------------------------
-H.error = function(msg) error('(gdev.lsp) ' .. msg, 0) end
-
-H.notify = function(msg, level) vim.notify('(gdev.lsp) ' .. msg, vim.log.levels[level or 'INFO']) end
-
-H.check_type = function(name, val, ref, allow_nil)
-  if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then return end
-  H.error(string.format('`%s` should be %s, not %s', name, ref, type(val)))
-end
-
-H.validate_buf_id = function(buf_id)
-  if buf_id == nil or buf_id == 0 then return vim.api.nvim_get_current_buf() end
-  if not (type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)) then
-    H.error('`buf_id` should be `nil` or valid buffer id, not ' .. vim.inspect(buf_id))
-  end
-  return buf_id
 end
 
 return GdevLsp

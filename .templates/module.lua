@@ -33,7 +33,9 @@
 
 -- Module definition ==========================================================
 local GdevTemplate = {}
-local H = {}
+-- Shared helpers, bound to this module: `error`, `notify`, `check_type`,
+-- `validate_buf_id`, `is_disabled`, `get_config`, `map`. See 'lua/gdev/util.lua'.
+local H = require('gdev.util').new('template', GdevTemplate)
 
 --- Module setup
 ---
@@ -160,12 +162,6 @@ end
 
 H.create_default_hl = function() vim.api.nvim_set_hl(0, 'GdevTemplateTitle', { default = true, link = 'Title' }) end
 
-H.is_disabled = function() return vim.g.gdevtemplate_disable == true or vim.b.gdevtemplate_disable == true end
-
-H.get_config = function(config)
-  return vim.tbl_deep_extend('force', GdevTemplate.config, vim.b.gdevtemplate_config or {}, config or {})
-end
-
 -- Actions ---------------------------------------------------------------------
 H.do_action = function(buf_id, opts)
   if not vim.api.nvim_buf_is_valid(buf_id) then return end
@@ -179,29 +175,5 @@ end
 
 -- Predicates -------------------------------------------------------------------
 H.is_buffer_normal = function(buf_id) return vim.bo[buf_id or 0].buftype == '' end
-
--- Utilities ------------------------------------------------------------------
-H.error = function(msg) error('(gdev.template) ' .. msg, 0) end
-
-H.notify = function(msg, level) vim.notify('(gdev.template) ' .. msg, vim.log.levels[level or 'INFO']) end
-
-H.check_type = function(name, val, ref, allow_nil)
-  if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then return end
-  H.error(string.format('`%s` should be %s, not %s', name, ref, type(val)))
-end
-
-H.validate_buf_id = function(buf_id)
-  if buf_id == nil or buf_id == 0 then return vim.api.nvim_get_current_buf() end
-  if not (type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)) then
-    H.error('`buf_id` should be `nil` or valid buffer id, not ' .. vim.inspect(buf_id))
-  end
-  return buf_id
-end
-
-H.map = function(mode, lhs, rhs, opts)
-  if lhs == '' then return end
-  opts = vim.tbl_deep_extend('force', { silent = true }, opts or {})
-  vim.keymap.set(mode, lhs, rhs, opts)
-end
 
 return GdevTemplate
