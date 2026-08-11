@@ -11,7 +11,7 @@ self-contained feature modules under a shared namespace (`gdev.*`), each indepen
 | `lua/gdev/<module>.lua` | One feature module per file |
 | `tests/test_<module>.lua` | mini.test suite per module |
 | `.templates/` | **Golden templates — all new modules/tests start here** |
-| `.doc/` | Project documentation (`patterns.md`, `testing.md`) |
+| `.doc/` | Project documentation (`plan.md` — execution roadmap, `patterns.md`, `testing.md`) |
 | `.ref/` | External reference repos. Read-only. **Never commit, never modify.** |
 | `doc/` | Generated vimdoc (via mini.doc) — regenerate, don't hand-edit |
 | `deps/` | Dev dependencies cloned by Makefile — gitignored |
