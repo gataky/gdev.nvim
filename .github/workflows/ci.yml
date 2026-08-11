@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, nvim ${{ matrix.neovim_version }})
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        neovim_version: [ stable, nightly ]
+        # Guard the minimum version claimed in the README, not just whatever
+        # 'stable' happens to be
+        include:
+          - os: ubuntu-latest
+            neovim_version: v0.11.7
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim_version }}
+
+      - name: Run tests
+        run: make test
+
+  lint-format:
+    name: Lint formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: JohnnyMorganz/stylua-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: v2.5.2
+          args: --color always --check .
+
+  lint-gendoc:
+    name: Lint generated docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Regenerate documentation
+        run: make --silent gendoc
+
+      - name: Fail if 'doc/' is out of date with annotations
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo 'Generated docs differ from the committed ones. Run `make gendoc` and commit the result.'
+            git status --porcelain
+            git diff
+            exit 1
+          fi
