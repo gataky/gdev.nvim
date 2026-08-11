@@ -92,9 +92,8 @@ Helpers.forward_lua = function(child, fun_str)
 end
 
 -- Detect environment. Time and retry constants are scaled because CI runners
--- (especially macOS and Windows) are markedly slower than local machines.
+-- (especially macOS) are markedly slower than local machines.
 Helpers.is_ci = function() return os.getenv('CI') ~= nil end
-Helpers.is_windows = function() return vim.fn.has('win32') == 1 end
 Helpers.is_macos = function() return vim.fn.has('mac') == 1 end
 Helpers.is_linux = function() return vim.fn.has('linux') == 1 end
 
@@ -106,7 +105,6 @@ Helpers.get_time_const = function(delay)
   local coef = 1
   if Helpers.is_ci() then
     if Helpers.is_linux() then coef = 2 end
-    if Helpers.is_windows() then coef = 5 end
     if Helpers.is_macos() then coef = 15 end
   end
   return coef * delay
@@ -116,7 +114,6 @@ Helpers.get_n_retry = function(n)
   local coef = 1
   if Helpers.is_ci() then
     if Helpers.is_linux() then coef = 2 end
-    if Helpers.is_windows() then coef = 3 end
     if Helpers.is_macos() then coef = 4 end
   end
   return coef * n

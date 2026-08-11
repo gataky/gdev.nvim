@@ -25,6 +25,9 @@ self-contained feature modules under a shared namespace (`gdev.*`), each indepen
    pattern question isn't covered, find how `.ref/mini.nvim` does it and match.
 3. **Every public API change** updates doc annotations and tests in the same commit.
 4. **Never commit `.ref/`** or anything derived from wholesale copying of it.
+5. **macOS and Linux only.** Neovim 0.11+, Godot 4.x. Don't add Windows or WSL code paths —
+   no `has('win32')` branches, no `ncat` transport, no named pipes. `.ref/godotdev.nvim` carries
+   all of that; we deliberately don't, since it's the one platform we can't test.
 
 ## Code style
 
