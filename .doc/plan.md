@@ -33,15 +33,22 @@ implement fresh following `.templates/` and `.doc/patterns.md`.
    Telescope for scene pickers; we deliberately improve on this — `vim.ui.select` works
    everywhere and users with Telescope/fzf-lua get their picker via ui-select adapters. This is
    the one sanctioned deviation from parity.
-4. **Share helpers rather than repeating them.** `lua/gdev/util.lua` holds what every module
-   needs — `error`, `notify`, `check_type`, `validate_buf_id`, `is_disabled`, `get_config`,
-   `map` — bound per module by `require('gdev.util').new('<name>', Gdev<Name>)`. Domain helpers
-   a second module can use unchanged belong there too: project-root discovery and scene
-   resolution, which `run` (Phase 6) and `scenetree` (Phase 7) both need, are the obvious
-   candidates — the reference duplicates roughly 130 lines across those two files. This
-   overrides mini.nvim's habit of restating boilerplate per module, which only pays off for a
-   plugin whose modules get copied out one at a time. Things a module might reasonably want to
-   do differently (config validation, augroups, user commands) stay in the module.
+4. **Share helpers rather than repeating them.** Two internal modules, neither `setup()`-able,
+   both using plain `--` comments so they stay out of the generated vimdoc:
+
+   - **`lua/gdev/util.lua`** — per-module plumbing: `error`, `notify`, `check_type`,
+     `validate_buf_id`, `is_disabled`, `get_config`, `map`, bound by
+     `require('gdev.util').new('<name>', Gdev<Name>)`.
+   - **`lua/gdev/project.lua`** — Godot-project domain knowledge: project-root discovery,
+     `res://` path conversion, scene listing, and finding the scenes that reference a script.
+     Introduced in Phase 6 and consumed unchanged by Phase 7; the reference duplicates roughly
+     130 lines of this across `run.lua` and `scene_tree.lua`. Kept separate from `util.lua`
+     because plumbing and domain knowledge have different audiences and lifetimes.
+
+   This overrides mini.nvim's habit of restating boilerplate per module, which only pays off for
+   a plugin whose modules get copied out one at a time. Things a module might reasonably want to
+   do differently (config validation, augroups, user commands, and `vim.ui.select` prompt
+   wording) stay in the module.
 5. **Target Neovim 0.11+, Godot 4.x** (warn below 4.3 in health), **macOS and Linux only**.
    Windows and WSL are out of scope: no `ncat` transport, no named pipes, no WSL bridge, no
    `has('win32')` branches. The reference carries all of that; we deliberately do not. This
@@ -450,7 +457,9 @@ Config: `buffer = { position = 'left'|'right', size = 0.35 }`,
   reapplied on ColorScheme, per patterns.md).
 - `:GdevScenetree [path]` resolves scene like `run` does (current `.tscn`, or scenes
   attached to current script with `vim.ui.select` on multiple); `:GdevScenetreeRefresh`
-  reparses.
+  reparses. **Use `lua/gdev/project.lua` for root discovery, `res://` conversion and
+  scene-for-script lookup** — Phase 6 built it to be consumed here unchanged. Do not
+  reimplement it, and do not copy the reference's duplicated copies.
 - Pane keymaps: `<CR>` jump to node's `[node …]` line in the `.tscn`, `y` yank node path,
   `g` open attached script, `r` refresh, `q` close.
 
