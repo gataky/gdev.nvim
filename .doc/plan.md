@@ -677,6 +677,56 @@ against that is insurance for 0.11 — which CI covers and this machine does not
 (mini.test can capture `vim.health` output; see how mini.nvim tests health or assert via
 `health.report_*` interception).
 
+**Phase 9 outcome (done).** Eight sections, built as an ordered `{ title, check }` registry so a C#
+section is one appended entry: Godot binary and version, plugin dependencies, editor connection
+(LSP and DAP port probes), editor server, treesitter parsers, formatter, class reference, scene
+tree. Windows `ncat` and WSL2 are dropped per standing decision 5.
+
+**All six query functions held up unchanged** — nothing missing, nothing worked around, no module
+touched. That validates a contract first introduced in Phase 2 and extended through Phase 8. The
+pre-chewed shapes are what made it work: `GdevScenetree.status().icons` returning the *resolved*
+style lets health warn about Nerd Fonts without knowing the icon internals, and
+`GdevFormat.get_command()` returning "argv minus the path" means health probes `argv[1]` without
+re-deriving it.
+
+- **One contract has an ambiguity worth knowing:** `get_command()` returns `nil` both for
+  "formatting is off" and, from health's side, for "module never set up". Health's internal query
+  returns `(result, asked)` to tell them apart. Any future query returning a meaningful `nil`
+  needs the same treatment.
+- Health reads `mod.config` directly for `lsp` and `dap`, which have no query by design. That cost
+  nothing — neither has a buffer-local override that would mean anything for a session-wide
+  connection.
+- During `:checkhealth` the current buffer is `health://`, a `nofile` buffer, so the Phase 6
+  `buftype ~= ''` guard sends root resolution to cwd. "Project root" therefore describes the
+  working directory, which is the sane answer.
+
+**Where the reference is wrong:** its `port_open()` returns `true` when `nc` is missing ("assume
+port ok"), so on a machine without netcat it reports a green tick for a port nothing is listening
+on — and its own `spec_health.lua` asserts that behavior. Ours returns a third state and says the
+probe was skipped.
+
+**Two findings worth reusing:**
+
+- **`pcall` around `vim.system` is load-bearing, not padding.** `executable()` only checks the
+  execute bit, so a wrapper script whose shebang interpreter is missing passes the guard and then
+  raises `ENOENT` out of `vim.system` (a text file with no shebang raises `ENOEXEC` the same way).
+  Unguarded, that aborts every later section. There is a fixture and a test for it.
+- `vim.health.warn(msg, advice)` takes advice as a second argument but `vim.health.info` does not,
+  and `vim.health` indents continuation lines by 2 on top of whatever you write.
+
+Recording the five `vim.health.*` calls rather than scraping the buffer was decisive: eleven of the
+32 mutations are level changes or duplications a buffer scrape would not see, and asserting
+*exactly one* match per finding is what catches duplication. Note `$PATH` is *replaced* rather than
+prepended in the child, so "tool not installed" stays testable on a machine that has the real one
+— which matters here, since this machine runs a live Godot editor on 6005/6006 and a real probe
+would have made the suite depend on whether it happened to be open.
+
+**Verified for real:** `:checkhealth gdev` was run outside the test suite against this machine and
+correctly reported Godot 4.7.1 as OK, both editor ports answering, the Neovim server address with
+the exact Godot `Exec Flags` recipe, and the two genuinely missing treesitter parsers
+(`gdshader`, `gdresource`). It also caught a real transient — a freshly installed Godot failing
+`--version` while macOS verified it — which is exactly the job.
+
 ## Phase 10 — umbrella entry, docs, release polish
 
 - [ ] `lua/gdev/init.lua`: optional convenience `require('gdev').setup({ lsp = {...},
@@ -738,5 +788,6 @@ Every user-visible capability of godotdev.nvim minus C#:
 - [x] Autoformat on save (gdscript-formatter default with `--reorder-code`, gdformat
       alternative, argv override, disable). Indent defaults are deliberately *not* set: Neovim's
       bundled gdscript ftplugin already does it, and the reference only documented its own.
-- [ ] `:checkhealth gdev` covering all of the above
+- [x] `:checkhealth gdev` covering all of the above (eight sections; verified against this
+      machine, not just fixtures)
 - [ ] README + vimdoc parity with the reference's documented workflows
