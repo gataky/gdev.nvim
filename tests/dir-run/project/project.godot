@@ -1,0 +1,12 @@
+; Fixture Godot project for the 'gdev.run' and 'gdev.project' suites.
+
+config_version=5
+
+[application]
+
+config/name="gdev-run-fixture"
+run/main_scene="res://Main.tscn"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

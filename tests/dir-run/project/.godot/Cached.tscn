@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bgdevruncached"]
+
+; Stands in for Godot's generated `.godot/` cache: listing project scenes must
+; not descend into dot-directories, or every scene shows up twice.
+
+[node name="Cached" type="Node"]

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgdevrunshaded"]
+
+[ext_resource type="Shader" path="res://scripts/orphan.gdshader" id="1_shader"]
+
+[node name="Shaded" type="Sprite2D"]
+material = ExtResource("1_shader")
