@@ -364,6 +364,248 @@ Return ~
 
 ==============================================================================
 ------------------------------------------------------------------------------
+*gdev.run* Run a Godot project
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                       *GdevRun*
+Features:
+- Starts the engine on the project around the current buffer, without
+  leaving Neovim. See |GdevRun.run_project()|.
+- Runs a single scene: the one in the current buffer, one named on the
+  command line, or one picked from the project. See
+  |GdevRun.run_current_scene()|, |GdevRun.run_scene()| and
+  |GdevRun.pick_scene()|.
+- Resolves scenes from a script buffer, so `:GdevRunCurrentScene` works
+  while you are editing the code rather than the scene.
+- Optionally captures the engine's output into a scratch window instead of
+  letting a detached process write it nowhere. See |GdevRun.show_console()|.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.run').setup({})` (replace `{}`
+with your `config` table). It will create global Lua table `GdevRun` which
+you can use for scripting or manually (with `:lua GdevRun.*`).
+
+See |GdevRun.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevrun_config` which should have same structure as `GdevRun.config`.
+
+# Project and scene resolution ~
+
+Every command starts by looking upward from the current buffer's file for a
+`project.godot`, falling back to the current working directory when the
+buffer has no file. That directory is what Godot is pointed at with
+`--path`, and what scene names are resolved against.
+
+A scene is named to the engine as a `res://` path. This module accepts that
+form, a path relative to the project root, or an absolute path inside it,
+and refuses anything that resolves outside the project -- including a
+`res://` path that climbs out with `..`. Running a scene from another
+project means opening a buffer in that project first.
+
+`:GdevRunCurrentScene` in a `.tscn` buffer runs that scene. In a script
+buffer it runs the scene that uses the script, or asks which one when
+several do, via |vim.ui.select()|. Which files count as scripts is
+`config.script_extensions`.
+
+# Console ~
+
+Off by default, and worth knowing why. A run with the console off is
+detached: the game outlives this Neovim, and its output goes wherever a
+detached process' output goes. With the console on, the run is attached
+instead -- output is streamed into a scratch window, `print()` and engine
+errors land in front of you, and quitting Neovim takes the game with it.
+
+Only one captured run happens at a time; starting a second while the first
+is alive is refused rather than interleaved into the same window. Detached
+runs are not counted or limited.
+
+A run opens the console window without taking the cursor, so you can keep
+editing while output arrives -- and so the next command still resolves the
+project from the file you are in rather than from the console. Moving there
+is `:GdevRunConsole`, which also reopens the window after `q` closed it; the
+output of the last run outlives its window.
+
+The exception is `console.buffer.position = 'current'`, which shows the
+console in the window you are in, because that is what it is for.
+
+# The Godot executable ~
+
+`config.godot` is looked up with |executable()|, so a bare name is resolved
+on `$PATH` and a path is used as given. Projects pinned to different engine
+versions are the usual reason to set it -- to an absolute path, or to a
+wrapper from a version manager, per project through
+`vim.b.gdevrun_config`.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevrun_disable` (globally) or `vim.b.gdevrun_disable`
+(for a buffer) to `true`. |GdevRun.status()| keeps answering while disabled,
+since that is when it gets asked.
+
+------------------------------------------------------------------------------
+                                                               *GdevRun.setup()*
+                           `GdevRun.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevRun.config|.
+
+Usage ~
+>lua
+  require('gdev.run').setup() -- use default config
+  -- OR
+  require('gdev.run').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                                *GdevRun.config*
+                                `GdevRun.config`
+Defaults ~
+>lua
+  GdevRun.config = {
+    -- Godot executable: a name to find on `$PATH`, or a path to run directly.
+    -- Point it at a version manager's wrapper to pin an engine per project.
+    godot = 'godot',
+
+    -- Extensions of files treated as Godot scripts when resolving which scene to
+    -- run from the current buffer. Replaces this list rather than adding to it.
+    script_extensions = { 'gd' },
+
+    -- Capture of the engine's output. With `enabled = false` a run is detached
+    -- and its output is lost; see |GdevRun| for the trade.
+    console = {
+      -- Whether to capture output at all
+      enabled = false,
+
+      -- Where to show it: `'buffer'` for a split, `'float'` for a floating window
+      renderer = 'buffer',
+
+      -- Split placement. `position` is `'bottom'`, `'right'` or `'current'`
+      -- (reuse the window you are in); `size` is a fraction of the editor.
+      buffer = {
+        position = 'bottom',
+        size = 0.3,
+      },
+
+      -- Floating window, sized as a fraction of the editor and centered in it.
+      -- `border` takes anything |nvim_open_win()| accepts.
+      float = {
+        width = 0.8,
+        height = 0.25,
+        border = 'rounded',
+      },
+    },
+  }
+<
+------------------------------------------------------------------------------
+                                                         *GdevRun.run_project()*
+                         `GdevRun.run_project`({opts})
+Run the whole project
+
+Starts the engine on the project around the current buffer, with no scene
+argument, so Godot plays the project's main scene.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevRun.config` for this call.
+
+Return ~
+`(boolean)` Whether the engine was started.
+
+------------------------------------------------------------------------------
+                                                   *GdevRun.run_current_scene()*
+                      `GdevRun.run_current_scene`({opts})
+Run the scene the current buffer is about
+
+In a `.tscn` buffer that is the scene itself. In a script buffer it is the
+scene that references the script -- run straight away when exactly one does,
+offered through |vim.ui.select()| when several do, and reported as an error
+when none does, which usually means the script is not attached to anything
+yet.
+
+Anything else -- a buffer with no file, a file of another kind, a file
+belonging to no Godot project -- is an error naming what was expected. Use
+|GdevRun.pick_scene()| when the buffer is not the thing you want to run.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevRun.config` for this call.
+
+Return ~
+`(boolean)` Whether the engine was started, or a picker was opened.
+
+------------------------------------------------------------------------------
+                                                           *GdevRun.run_scene()*
+                      `GdevRun.run_scene`({scene}, {opts})
+Run a named scene
+
+`scene` may be a `res://` path, a path relative to the project root, or an
+absolute path inside it; see |GdevRun| for how they are resolved. The scene
+file is not required to exist -- Godot reports a missing one better than a
+guess from here would.
+
+Parameters ~
+{scene} `(string)` Scene to run.
+{opts} `(table|nil)` Options overriding `GdevRun.config` for this call.
+
+Return ~
+`(boolean)` Whether the engine was started.
+
+------------------------------------------------------------------------------
+                                                          *GdevRun.pick_scene()*
+                          `GdevRun.pick_scene`({opts})
+Pick a scene to run
+
+Offers every scene in the project through |vim.ui.select()|, sorted. Users
+with a `vim.ui.select` adapter (Telescope, fzf-lua, snacks) get their own
+picker here for free.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevRun.config` for this call.
+
+Return ~
+`(boolean)` Whether a picker was opened.
+
+------------------------------------------------------------------------------
+                                                        *GdevRun.show_console()*
+                         `GdevRun.show_console`({opts})
+Show the captured console
+
+Reopens the window holding the output of the last captured run, or focuses
+it when it is already open. Output survives closing the window, so this is
+how you get back to what a run printed.
+
+Nothing has been captured until a run happens with `config.console.enabled`
+set; detached runs leave nothing to show.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevRun.config` for this call.
+
+Return ~
+`(boolean)` Whether a console window is now open.
+
+------------------------------------------------------------------------------
+                                                              *GdevRun.status()*
+                            `GdevRun.status`({opts})
+Report what a run would use
+
+Pure: resolves the project root and the engine to run without starting
+anything, so it is safe to call from |:checkhealth| and from a statusline.
+Keeps answering while the module is disabled, since that is when it gets
+asked.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevRun.config` for this call.
+
+Return ~
+`(table)` `{ root = string|nil, godot = string, executable = boolean }`,
+  where `root` is the project around the current buffer and `executable`
+  says whether `godot` can be run.
+
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.server* Neovim server for Godot's external editor
 
 MIT License Copyright (c) 2026 gdev.nvim authors

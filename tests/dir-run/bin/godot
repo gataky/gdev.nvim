@@ -1,0 +1,14 @@
+#!/bin/sh
+# Fake Godot for the 'gdev.run' suite. Records the argv it was given, then
+# behaves as the environment tells it to, so one script covers launching,
+# streaming output into the console, failing, and staying alive long enough for
+# the single-run guard to have something to guard against.
+#
+# `${0##*/}` rather than `$0`: `vim.system` hands a `#!` script the PATH-resolved
+# absolute path as argv[0], so the name invoked has to be recovered.
+[ -n "$GDEV_RUN_ARGV_LOG" ] && printf '%s\n' "${0##*/}" "$@" >>"$GDEV_RUN_ARGV_LOG"
+[ -n "$GDEV_RUN_SLEEP" ] && sleep "$GDEV_RUN_SLEEP"
+[ -n "$GDEV_RUN_STDOUT" ] && printf '%s\n' "$GDEV_RUN_STDOUT"
+[ -n "$GDEV_RUN_STDERR" ] && printf '%s\n' "$GDEV_RUN_STDERR" >&2
+[ -n "$GDEV_RUN_PARTIAL" ] && printf '%s' "$GDEV_RUN_PARTIAL"
+exit "${GDEV_RUN_EXIT:-0}"

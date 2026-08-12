@@ -1,0 +1,7 @@
+; Fixture Godot project with no scenes at all, for the empty-picker path.
+
+config_version=5
+
+[application]
+
+config/name="gdev-run-empty-fixture"
