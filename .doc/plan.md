@@ -527,6 +527,61 @@ scripted); rendering via `child.expect_screenshot()` for icons/highlights (commi
 screenshots); keymap behaviors (jump target line, yanked register content, script open);
 config matrix for position/size/icons via `parametrize`.
 
+**Phase 7 outcome (done).** Config adds `mappings` (the plan pinned the keys, but `g` shadows
+`gg` inside the pane, so an off switch is not optional) and `script_extensions` (the C# seam).
+Public API: `open`, `refresh`, `close`, `jump_to_node`, `yank_node_path`, `open_script`, plus the
+pure queries `get_nodes(scene)` and `status(opts)`.
+
+**`gdev.project` held up as a shared dependency** — consumed unchanged, nothing missing, nothing
+worked around, and `to_path()` finally has its consumer. That validates the Phase 6 split. One
+case the contract does not cover was solved locally, correctly: a focused pane is a `nofile`
+buffer but still needs a project, so the module remembers the pane's own root and falls back to
+`Project.find_root()` otherwise. That is pane state, so it belongs in the module.
+
+**Where the reference is wrong (verified independently):**
+
+- **Its parser mis-reads every instanced scene.** `parse_attributes` matches bare values with
+  `[^%s"%]]+`, which excludes `"`, so `instance=ExtResource("2_abc")` yields
+  `instance = 'ExtResource('` and that string becomes the node's type. Reproduced directly
+  against the reference's own pattern. Ours resolves the id against the `[ext_resource]` table
+  and shows the instanced scene rather than a useless `PackedScene`.
+- **`type` is not always knowable, and defaulting it to `Node` is a lie.** A node overriding a
+  property inside an instance (`[node name="Camera" parent="Hero" index="0"]`) carries no type in
+  that file; the reference prints `[Node]`. Ours omits the bracket and greys the icon. Inherited
+  scenes make this common.
+- **`script = ExtResource(...)` must be word-anchored**, or an exported property such as
+  `death_script = ExtResource("1")` marks the node as scripted. Fixed with a `%f[%w_]` frontier.
+- Godot 3 tolerance was attempted and then removed: Godot 3 also writes `id=1` unquoted in the
+  `[ext_resource]` header, which the attribute parser never records, so half-tolerance could not
+  work. Godot 4 quoting is required.
+
+### Screenshot infrastructure — usable, with one rule
+
+**Isolate the window under test** (`:only`, or a float over an empty buffer). A first attempt left
+the scene file visible beside the pane, and the reference then captured Neovim's *bundled*
+`gdresource` syntax highlighting — a runtime file that can differ across 0.11.7 / stable /
+nightly, i.e. a CI failure unrelated to the code. Isolated, the captured surface is just the
+pinned colorscheme, the pinned statusline and the module's own highlights.
+
+The screenshot earned its place: one mutation ("window options not set") was caught **only** by
+the screenshot, via a missing `cursorline` attribute. One reference is committed, `icons =
+'ascii'`, 12×44.
+
+**For Phase 8:** attribute symbols are assigned in order of appearance, so they are stable as long
+as the *grouping* is — two highlight groups that collide under mini.hues silently merge, worth
+checking when a screenshot is meant to prove colours differ (`PreProc` and `DiagnosticInfo` are
+the same blue there, which is why purple links to `Constant`). For float geometry,
+`nvim_win_get_config` remains the sharper tool: screenshot the border and content, assert
+geometry through the API.
+
+**Operational warning:** a mutation that stops the pane taking the cursor *hangs* the suite rather
+than failing it — `type_keys('r')` then lands in a `.tscn` buffer where `r` waits for a character
+and blocks the child. Nothing shipped triggers it, but a hung CI job is worse than a failed one;
+keep it in mind if pane focus is ever changed.
+
+**For Phase 9:** `GdevScenetree.status()` → `{ root, scene, open, icons }`, pure and disabled-safe.
+`icons` is the *resolved* style, so health can warn that `'nerdfont'` needs a patched font.
+
 ## Phase 8 — `gdev.docs`
 
 **Goal:** Godot class reference inside Neovim.
@@ -635,8 +690,9 @@ Every user-visible capability of godotdev.nvim minus C#:
       multi-match picker
 - [x] Run console capture (buffer/float, reopen command, single-run guard)
 - [x] Editor server: start command, autostart option, address pinning, stale socket cleanup
-- [ ] Scene tree pane: icons + color groups, jump/yank/open-script/refresh/close keymaps,
-      position/size config
+- [x] Scene tree pane: icons + color groups, jump/yank/open-script/refresh/close keymaps,
+      position/size config (keymaps are configurable, and instanced scenes parse correctly —
+      the reference mis-reads every one of them)
 - [ ] Docs: float/buffer/browser renderers, cursor symbol default, rst→markdown, cache,
       browser fallback, missing-symbol feedback modes
 - [x] Autoformat on save (gdscript-formatter default with `--reorder-code`, gdformat
