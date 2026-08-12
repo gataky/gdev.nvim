@@ -26,10 +26,12 @@ test_%: deps/mini.nvim
 
 # Regenerate 'doc/gdev.txt' from module annotations. `setup()` has to run first:
 # the `---@eval` blocks that render config defaults into help reference the
-# global `MiniDoc`, which only exists once the module is set up.
+# global `MiniDoc`, which only exists once the module is set up. The output path
+# is spelled out because mini.doc otherwise derives it from the name of the
+# working directory, which is not 'gdev.nvim' inside a git worktree.
 gendoc: deps/mini.nvim
 	$(NVIM_EXEC) --headless --noplugin -u ./scripts/minimal_init.lua \
-		-c "lua require('mini.doc').setup(); require('mini.doc').generate()" -c "qa!"
+		-c "lua require('mini.doc').setup(); require('mini.doc').generate(nil, 'doc/gdev.txt')" -c "qa!"
 
 format:
 	stylua .
