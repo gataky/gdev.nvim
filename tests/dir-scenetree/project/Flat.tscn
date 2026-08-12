@@ -1,0 +1,7 @@
+[gd_scene load_steps=1 format=3 uid="uid://bgdevflat"]
+
+[node name="Main" type="Node2D"]
+
+[node name="Camera" type="Camera2D" parent="."]
+
+[node name="Sprite" type="Sprite2D" parent="."]

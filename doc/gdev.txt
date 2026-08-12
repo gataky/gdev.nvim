@@ -606,6 +606,292 @@ Return ~
 
 ==============================================================================
 ------------------------------------------------------------------------------
+*gdev.scenetree* Browse a Godot scene as a tree
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                 *GdevScenetree*
+Features:
+- Renders the node hierarchy of a `.tscn` file into a side pane, with
+  per-type icons colored by Godot's own node categories. See
+  |GdevScenetree.open()|.
+- Resolves the scene from the buffer you are in: the scene itself, or the
+  scene that uses the script you are editing.
+- Jumps from a node to its `[node ...]` line in the scene file, to its
+  attached script, or to the scene it instances.
+- Parses without Godot running: it reads the file, so it answers for a
+  scene you have never opened in the editor. See |GdevScenetree.get_nodes()|.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.scenetree').setup({})`
+(replace `{}` with your `config` table). It will create global Lua table
+`GdevScenetree` which you can use for scripting or manually (with
+`:lua GdevScenetree.*`).
+
+See |GdevScenetree.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevscenetree_config` which should have same structure as
+`GdevScenetree.config`. It is read from the buffer the command runs in, so
+a per-project override belongs on the source buffer rather than the pane.
+
+# Scene resolution ~
+
+`:GdevScenetree` with no argument shows the scene the current buffer is
+about: the buffer itself when it is a `.tscn`, otherwise the scene that
+references the script you are editing -- picked through |vim.ui.select()|
+when several do. Which files count as scripts is `config.script_extensions`.
+
+With an argument it shows that scene, named as a `res://` path, a path
+relative to the project root, or an absolute path inside it. Anything that
+resolves outside the project is refused; the project is the one around the
+current buffer, so browsing another project means opening a buffer in it
+first.
+
+Run from inside the pane, `:GdevScenetree` re-renders what the pane already
+shows, which is also what `:GdevScenetreeRefresh` does.
+
+# The pane ~
+
+A `nofile` scratch buffer in a vertical split, placed and sized by
+`config.buffer`. Opening it takes the cursor: it is a place to navigate
+from, and its mappings are the point.
+
+Default mappings, all buffer-local and all configurable through
+`config.mappings` (`''` turns one off):
+
+- `<CR>` - jump to this node's `[node ...]` line in the scene file.
+- `y`    - yank the node's path (what Godot's `get_node()` takes) into the
+           unnamed register.
+- `g`    - open the node's attached script, or the scene it instances.
+- `r`    - reparse the scene file.
+- `q`    - close the pane. The buffer survives, so reopening is instant.
+
+Jumping opens the file in the window the pane was opened from, splitting
+only when the pane is the only window left.
+
+# Icons ~
+
+`config.icons` is `'nerdfont'` (needs a patched font), `'ascii'`, `false`
+for none, or a table merged over the `'nerdfont'` set -- so overriding a
+few types keeps the rest:
+>lua
+  icons = { types = { Camera2D = '@' } }
+<
+A type with no icon of its own falls back to its family (anything ending in
+`2D`, `3D`, `Container`, `Button`, ...), then to `icons.generic`. Nodes with
+an attached script get `icons.script_suffix` appended.
+
+# Highlight groups ~
+
+Only the icon is colored, by the category Godot's editor colors that node
+with. Change the mapping from category to color through
+`config.icon_colors`, or set the groups directly with |nvim_set_hl()|.
+
+- `GdevScenetreeHeader` - first line of the pane, naming the scene.
+- `GdevScenetreeIconRed` - 3D nodes.
+- `GdevScenetreeIconBlue` - 2D nodes.
+- `GdevScenetreeIconGreen` - `Control` nodes.
+- `GdevScenetreeIconPurple` - animation nodes.
+- `GdevScenetreeIconYellow` - nodes that bring in something else: an
+  instanced scene, or an editor plugin.
+- `GdevScenetreeIconGrey` - nodes whose type the scene file does not state,
+  which is how Godot records an override of a node inside an instance.
+- `GdevScenetreeIconWhite` - nodes in no family of their own: `Node`,
+  `Timer`, `CanvasLayer` and the like.
+- `GdevScenetreeIcon` - everything else, which in practice means a
+  `class_name` of your own.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevscenetree_disable` (globally) or
+`vim.b.gdevscenetree_disable` (for a buffer) to `true`.
+|GdevScenetree.get_nodes()| and |GdevScenetree.status()| keep answering
+while disabled, since neither touches the screen.
+
+------------------------------------------------------------------------------
+                                                         *GdevScenetree.setup()*
+                        `GdevScenetree.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevScenetree.config|.
+
+Usage ~
+>lua
+  require('gdev.scenetree').setup() -- use default config
+  -- OR
+  require('gdev.scenetree').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                          *GdevScenetree.config*
+                             `GdevScenetree.config`
+Defaults ~
+>lua
+  GdevScenetree.config = {
+    -- The pane. `position` is `'left'` or `'right'`; `size` is its width as a
+    -- fraction of the editor.
+    buffer = {
+      position = 'left',
+      size = 0.35,
+    },
+
+    -- Node icons: `'nerdfont'`, `'ascii'`, `false`, or a table with `generic`,
+    -- `script_suffix` and `types` merged over the `'nerdfont'` set
+    icons = 'nerdfont',
+
+    -- Color of the icon column, per Godot node category. Each value is a
+    -- highlight group to link to, or a table |nvim_set_hl()| accepts.
+    icon_colors = {
+      generic = 'Normal',
+      groups = {
+        White = 'Normal',
+        Grey = 'Comment',
+        Blue = 'DiagnosticInfo',
+        Red = 'DiagnosticError',
+        Green = 'DiagnosticOk',
+        Purple = 'Constant',
+        Yellow = 'DiagnosticWarn',
+      },
+    },
+
+    -- Pane mappings. Use `''` (empty string) to disable one.
+    mappings = {
+      jump = '<CR>',
+      yank = 'y',
+      script = 'g',
+      refresh = 'r',
+      close = 'q',
+    },
+
+    -- Extensions of files treated as Godot scripts when resolving which scene
+    -- the current buffer is about. Replaces this list rather than adding to it.
+    script_extensions = { 'gd' },
+  }
+<
+------------------------------------------------------------------------------
+                                                          *GdevScenetree.open()*
+                     `GdevScenetree.open`({scene}, {opts})
+Show a scene in the pane
+
+`scene` is a `res://` path, a path relative to the project root, or an
+absolute path inside it. With `nil` the scene is resolved from the current
+buffer; see |GdevScenetree| for the rules, including what happens when
+several scenes use the script you are editing.
+
+Opening focuses the pane. Reopening reuses its window and buffer, so the
+pane never multiplies.
+
+Parameters ~
+{scene} `(string|nil)` Scene to show, or `nil` to resolve one.
+{opts} `(table|nil)` Options overriding `GdevScenetree.config` for this call.
+
+Return ~
+`(boolean)` Whether the pane now shows a scene, or a picker was opened.
+
+------------------------------------------------------------------------------
+                                                       *GdevScenetree.refresh()*
+                        `GdevScenetree.refresh`({opts})
+Reparse the scene the pane shows
+
+Picks up edits to the scene file, and re-renders with the config as it is
+now. The cursor keeps its line, so a refresh does not lose your place.
+
+With nothing shown yet this is |GdevScenetree.open()| with no argument.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevScenetree.config` for this call.
+
+Return ~
+`(boolean)` Whether the pane now shows a scene.
+
+------------------------------------------------------------------------------
+                                                         *GdevScenetree.close()*
+                            `GdevScenetree.close`()
+Close the pane
+
+The buffer is kept, so reopening costs nothing and does not reparse.
+
+Return ~
+`(boolean)` Whether a window was closed.
+
+------------------------------------------------------------------------------
+                                                  *GdevScenetree.jump_to_node()*
+                         `GdevScenetree.jump_to_node`()
+Jump to the node under the cursor in the scene file
+
+Opens the `.tscn` at the node's `[node ...]` line, in the window the pane
+was opened from.
+
+Return ~
+`(boolean)` Whether the jump happened.
+
+------------------------------------------------------------------------------
+                                                *GdevScenetree.yank_node_path()*
+                        `GdevScenetree.yank_node_path`()
+Yank the path of the node under the cursor
+
+The path is the one Godot's `get_node()` takes, relative to the scene root
+(`.` for the root itself). It goes into the unnamed register.
+
+Return ~
+`(boolean)` Whether something was yanked.
+
+------------------------------------------------------------------------------
+                                                   *GdevScenetree.open_script()*
+                         `GdevScenetree.open_script`()
+Open what the node under the cursor points at
+
+The script attached to it, or -- for a node that instances another scene --
+that scene. Both open in the window the pane was opened from.
+
+Return ~
+`(boolean)` Whether a file was opened.
+
+------------------------------------------------------------------------------
+                                                     *GdevScenetree.get_nodes()*
+                       `GdevScenetree.get_nodes`({scene})
+Nodes of a scene
+
+Pure: parses the scene file and returns what is in it, touching no window.
+Keeps answering while the module is disabled.
+
+Each node is `{ name, type, parent, path, depth, line, script, instance }`.
+`type` is absent when the file does not state one, which is how Godot
+records an override of a node that lives inside an instanced scene.
+`script` and `instance` are `res://` paths; `line` is the 1-based line of
+the node's `[node ...]` header, and `path` is what `get_node()` takes.
+
+Parameters ~
+{scene} `(string|nil)` Scene to parse, resolved like |GdevScenetree.open()|
+  does. `nil` is the scene the pane shows.
+
+Return ~
+`(table)` Array of nodes in file order. Empty when the scene cannot be
+  read, which includes naming one outside the project.
+
+------------------------------------------------------------------------------
+                                                        *GdevScenetree.status()*
+                         `GdevScenetree.status`({opts})
+Report what the pane would show
+
+Pure, and keeps answering while the module is disabled -- which is when
+|:checkhealth| asks. `icons` is the resolved style rather than the raw
+config value, so `'nerdfont'` there means a patched font is required.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevScenetree.config` for this call.
+
+Return ~
+`(table)` `{ root = string|nil, scene = string|nil, open = boolean,
+  icons = string|false }`, where `root` is the project around the current
+  buffer and `scene` the one the pane holds.
+
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.server* Neovim server for Godot's external editor
 
 MIT License Copyright (c) 2026 gdev.nvim authors

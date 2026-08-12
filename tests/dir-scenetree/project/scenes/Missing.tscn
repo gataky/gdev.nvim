@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://bgdevmissing"]
+
+[ext_resource type="Script" path="res://scripts/gone.gd" id="1_gone"]
+[ext_resource type="Script" path="user://elsewhere.gd" id="2_user"]
+
+[node name="Root" type="Node"]
+script = ExtResource("1_gone")
+
+[node name="Elsewhere" type="Node" parent="."]
+script = ExtResource("2_user")

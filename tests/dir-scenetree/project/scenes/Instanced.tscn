@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgdevinstanced"]
+
+[ext_resource type="PackedScene" uid="uid://bgdevflat" path="res://Flat.tscn" id="1_flat"]
+
+[node name="Level" type="Node2D"]
+
+[node name="Hero" parent="." instance=ExtResource("1_flat")]
+position = Vector2(10, 20)
+
+[node name="Camera" parent="Hero" index="0"]
+zoom = Vector2(2, 2)

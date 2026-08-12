@@ -1,0 +1,17 @@
+[gd_scene load_steps=1 format=3 uid="uid://bgdevnested"]
+
+[node name="World" type="Node2D"]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(64, 32)
+
+[node name="Body" type="CollisionShape2D" parent="Player"]
+
+[node name="Weapon" type="Node2D" parent="Player"]
+
+[node name="Tip" type="Marker2D" parent="Player/Weapon"]
+
+[node name="Ui" type="CanvasLayer" parent="."]
+
+[node name="Score" type="Label" parent="Ui"]
+text = "0"

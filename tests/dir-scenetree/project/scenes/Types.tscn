@@ -1,0 +1,17 @@
+[gd_scene load_steps=1 format=3 uid="uid://bgdevtypes"]
+
+[node name="Root" type="Node"]
+
+[node name="Flat" type="Sprite2D" parent="."]
+
+[node name="Deep" type="Camera3D" parent="."]
+
+[node name="Ui" type="PanelContainer" parent="."]
+
+[node name="Anim" type="AnimationPlayer" parent="."]
+
+[node name="Plugin" type="GridMapEditorPlugin" parent="."]
+
+[node name="Tiles" type="TileMap" parent="."]
+
+[node name="Custom" type="MyEnemy" parent="."]

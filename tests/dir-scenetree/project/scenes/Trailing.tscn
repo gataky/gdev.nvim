@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgdevtrailing"]
+
+[ext_resource type="Script" path="res://scripts/data.gd" id="1_data"]
+
+[node name="Trailing" type="Node"]
+
+[connection signal="ready" from="." to="." method="_on_ready"]
+
+[sub_resource type="Resource" id="Resource_late"]
+script = ExtResource("1_data")
