@@ -98,6 +98,218 @@ Defaults ~
 
 ==============================================================================
 ------------------------------------------------------------------------------
+*gdev.docs* Godot class reference
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                      *GdevDocs*
+Features:
+- Shows a Godot class page without leaving Neovim: name it, or put the
+  cursor on it. See |GdevDocs.open()|.
+- Three renderers -- a floating window, a reusable split, or the class page
+  on the website in your browser.
+- Converts the documentation's reStructuredText source to Markdown, so the
+  page reads as text rather than as markup.
+- Caches what it fetched, so a class you keep coming back to costs one
+  request per session.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.docs').setup({})` (replace
+`{}` with your `config` table). It will create global Lua table `GdevDocs`
+which you can use for scripting or manually (with `:lua GdevDocs.*`).
+
+See |GdevDocs.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevdocs_config` which should have same structure as
+`GdevDocs.config`.
+
+# Where the pages come from ~
+
+Two different places, and it is worth knowing which is which.
+
+The `'float'` and `'buffer'` renderers read the *source* of the class page:
+`classes/class_<name>.rst` under `config.source_base_url`, which defaults to
+the `godot-docs` repository at `config.source_ref`. Fetching is |curl| over
+|vim.system()|, bounded by `config.timeout_ms`.
+
+The `'browser'` renderer opens the *published* page on
+`docs.godotengine.org` for `config.language` and `config.version` instead,
+through |vim.ui.open()|. It needs nothing fetched, which is why it is also
+the only `config.fallback_renderer` that can recover a failed fetch --
+being offline, being behind a proxy, or naming a class that does not exist.
+
+Both URLs are built from the symbol alone (lowercased, spaces removed), so
+there is no index to download and nothing to keep in sync. |GdevDocs.get_url()|
+returns them without fetching anything.
+
+# Caching ~
+
+Converted pages are kept in memory, keyed by source URL and evicted least
+recently used at `config.cache.max_entries`. Because the key is the whole
+URL, pointing `source_ref` or `source_base_url` somewhere else invalidates
+nothing and re-fetches everything -- which is what you want when you switch
+to a `4.3` branch of the docs. Setting `cache.enabled = false` in `setup()`
+also drops whatever was already cached.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevdocs_disable` (globally) or
+`vim.b.gdevdocs_disable` (for a buffer) to `true`. |GdevDocs.get_url()| and
+|GdevDocs.status()| keep answering while disabled, since neither touches
+the screen, and |GdevDocs.close()| keeps working so a window that is
+already open can always be shut.
+
+------------------------------------------------------------------------------
+                                                              *GdevDocs.setup()*
+                           `GdevDocs.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevDocs.config|.
+
+Usage ~
+>lua
+  require('gdev.docs').setup() -- use default config
+  -- OR
+  require('gdev.docs').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                               *GdevDocs.config*
+                               `GdevDocs.config`
+Defaults ~
+>lua
+  GdevDocs.config = {
+    -- How `:GdevDocs` shows a page: `'float'`, `'buffer'` or `'browser'`
+    renderer = 'float',
+
+    -- What to do when the documentation source can not be fetched. `'browser'`
+    -- is the only renderer that can recover, since it needs nothing fetched;
+    -- `false` reports the failure per `missing_symbol_feedback` instead.
+    fallback_renderer = 'browser',
+
+    -- How a symbol that resolves to nothing is reported: `'message'` echoes,
+    -- `'notify'` goes through |vim.notify()|
+    missing_symbol_feedback = 'message',
+
+    -- Documentation version and language, as they appear in a
+    -- `docs.godotengine.org` URL
+    version = 'stable',
+    language = 'en',
+
+    -- Git ref of `godotengine/godot-docs` the reStructuredText source is read
+    -- from. Ignored when `source_base_url` is set.
+    source_ref = 'master',
+
+    -- Base URL of the documentation source tree. `nil` builds it from
+    -- `source_ref`; set it to a local checkout (`file:///path/to/godot-docs`)
+    -- to read the pages offline.
+    source_base_url = nil,
+
+    -- How long a single fetch may take, in milliseconds
+    timeout_ms = 10000,
+
+    -- In-memory cache of converted pages, evicted least recently used
+    cache = {
+      enabled = true,
+      max_entries = 64,
+    },
+
+    -- Floating window, sized as a fraction of the editor and centered in it.
+    -- `border` takes anything |nvim_open_win()| accepts.
+    float = {
+      width = 0.8,
+      height = 0.8,
+      border = 'rounded',
+    },
+
+    -- Split used by the `'buffer'` renderer. `position` is `'right'`,
+    -- `'bottom'` or `'current'` (reuse the window you are in); `size` is a
+    -- fraction of the editor.
+    buffer = {
+      position = 'right',
+      size = 0.4,
+    },
+  }
+<
+------------------------------------------------------------------------------
+                                                               *GdevDocs.open()*
+                       `GdevDocs.open`({symbol}, {opts})
+Show the documentation for a symbol
+
+`symbol` is a class name -- `'Node2D'`, `'@GDScript'`. Omitted or empty, it
+is taken from the word under the cursor, which is what makes `:GdevDocs`
+with no argument useful in a script buffer.
+
+Everything after that is asynchronous: the fetch happens in the background
+and the window appears when it answers, so this returning `true` means the
+lookup started rather than that a page exists. A failure surfaces later,
+through `config.fallback_renderer` or `config.missing_symbol_feedback`.
+
+Parameters ~
+{symbol} `(string|nil)` Class to look up, or `nil` for the word under the cursor.
+{opts} `(table|nil)` Options overriding `GdevDocs.config` for this call.
+  `{ renderer = 'browser' }` is what the per-renderer commands pass.
+
+Return ~
+`(boolean)` Whether a lookup was started.
+
+------------------------------------------------------------------------------
+                                                              *GdevDocs.close()*
+                               `GdevDocs.close`()
+Close the documentation window
+
+Deliberately keeps working while the module is disabled, and is what the
+`q` mapping in a documentation buffer calls: disabling a module must not be
+able to strand a window it opened. When the documentation took over the
+only window (`buffer.position = 'current'`), that window goes back to what
+it was showing rather than being closed.
+
+Return ~
+`(boolean)` Whether a window was closed.
+
+------------------------------------------------------------------------------
+                                                            *GdevDocs.get_url()*
+                      `GdevDocs.get_url`({symbol}, {opts})
+URLs a symbol resolves to
+
+Pure: builds both URLs without fetching anything, so it is safe to call
+from a mapping, a statusline or |:checkhealth|, and keeps answering while
+the module is disabled. Resolves `symbol` exactly as |GdevDocs.open()|
+does, cursor word included.
+
+Parameters ~
+{symbol} `(string|nil)` Class to look up, or `nil` for the word under the cursor.
+{opts} `(table|nil)` Options overriding `GdevDocs.config` for this call.
+
+Return ~
+`(table|nil)` `{ symbol = string, slug = string, source = string, page = string }`,
+  where `source` is the reStructuredText fetched by the `'float'` and
+  `'buffer'` renderers and `page` the website page opened by `'browser'`.
+  `nil` when no symbol resolves.
+
+------------------------------------------------------------------------------
+                                                             *GdevDocs.status()*
+                           `GdevDocs.status`({opts})
+Report what a lookup would use
+
+Pure and side-effect free, and keeps answering while the module is
+disabled, since that is when it gets asked.
+
+Parameters ~
+{opts} `(table|nil)` Options overriding `GdevDocs.config` for this call.
+
+Return ~
+`(table)` `{ renderer, fallback_renderer, source_url, page_url, curl, cache }`,
+  where the two URLs are the base of each tree rather than any one page,
+  `curl` says whether the fetcher is executable, and `cache` is
+  `{ enabled, entries, max_entries }`.
+
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.format* GDScript formatting
 
 MIT License Copyright (c) 2026 gdev.nvim authors
