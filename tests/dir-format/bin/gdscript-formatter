@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fake `gdscript-formatter` for the 'gdev.format' suite. Records the argv it was
+# given and rewrites the file it was pointed at, so tests can assert both the
+# command line and the buffer reload on a machine with no formatter installed.
+[ -n "$GDEV_FORMAT_ARGV_LOG" ] && printf '%s\n' "${0##*/}" "$@" >>"$GDEV_FORMAT_ARGV_LOG"
+for target in "$@"; do :; done
+[ -n "$target" ] || exit 0
+printf 'extends Node\n# formatted by %s\n' "${0##*/}" >"$target"
