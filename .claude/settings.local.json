@@ -7,7 +7,10 @@
       "Bash(make *)",
       "Bash(git check-ignore *)",
       "Bash(git ls-tree *)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(python3 *)",
+      "Bash(ps *)"
     ]
   }
 }
