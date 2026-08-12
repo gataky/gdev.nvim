@@ -13,7 +13,12 @@ if #vim.api.nvim_list_uis() == 0 then
     return vim.iter(user_dirs):any(function(user_dir) return vim.startswith(dir, user_dir) end)
   end
   vim.opt.rtp = vim.tbl_filter(function(dir) return not is_user_dir(dir) end, vim.opt.rtp:get())
-  vim.o.packpath = ''
+
+  -- 'packpath' is deliberately left alone. Emptying it also hides Neovim's own
+  -- bundled packages, and the resulting `E919` for netrw stops the child exiting
+  -- cleanly, so mini.test's 1s `jobwait` on teardown times out for every single
+  -- case — 1047ms per case against 26ms. Filtering 'runtimepath' above is what
+  -- actually keeps a locally installed mini.nvim from winning.
 
   -- Prepended, so the pinned copy wins over any other on 'runtimepath'
   vim.cmd('set rtp^=deps/mini.nvim')

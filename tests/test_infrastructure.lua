@@ -35,6 +35,15 @@ end
 
 T['child process']['loads mini.test'] = function() eq(child.lua_get('type(_G.MiniTest)'), 'table') end
 
+T['child process']['starts without errors'] = function()
+  -- Worth a case of its own because the symptom is invisible: an error during
+  -- startup leaves the child unable to exit cleanly, so mini.test's one-second
+  -- `jobwait` on teardown times out for every case. Tests still pass; the suite
+  -- just silently costs 25x more. Emptying 'packpath' did exactly this, by
+  -- hiding Neovim's own bundled netrw package.
+  eq(child.lua_get('vim.v.errmsg'), '')
+end
+
 T['child process']['pins appearance for reference screenshots'] = function()
   -- Reference screenshots are committed, so anything they capture has to be
   -- version-independent (see 'scripts/minimal_init.lua')
