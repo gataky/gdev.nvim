@@ -5,8 +5,12 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('lsp', config) end
-local unload_module = function() child.gdev_unload('lsp') end
+local load_module = function(config)
+  child.gdev_load('lsp', config)
+end
+local unload_module = function()
+  child.gdev_unload('lsp')
+end
 
 -- Stubs installed in the child. Godot's server is never running during tests,
 -- so anything that needs a client fakes one; `vim.lsp` is stubbed rather than
@@ -90,7 +94,10 @@ T['setup()']['registers the Godot language server'] = function()
 
   -- Fetched field by field: the resolved config holds functions, which cannot
   -- cross the RPC boundary to this process
-  eq(child.lua_get('vim.lsp.config.gdscript.filetypes'), { 'gd', 'gdscript', 'gdscript3', 'gdshader' })
+  eq(
+    child.lua_get('vim.lsp.config.gdscript.filetypes'),
+    { 'gd', 'gdscript', 'gdscript3', 'gdshader' }
+  )
   eq(child.lua_get('vim.lsp.config.gdscript.root_markers'), { 'project.godot', '.git' })
 
   -- The function that owns the TCP socket, built by `vim.lsp.rpc.connect()`
@@ -122,7 +129,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -158,7 +167,8 @@ T['reconnect()']['works'] = function()
 end
 
 T['reconnect()']['ignores buffers that are not loaded'] = function()
-  local unloaded = child.lua_get('vim.fn.bufadd(vim.fn.fnamemodify("tests/dir-lsp/script.gd", ":p"))')
+  local unloaded =
+    child.lua_get('vim.fn.bufadd(vim.fn.fnamemodify("tests/dir-lsp/script.gd", ":p"))')
   eq(child.lua_get('vim.api.nvim_buf_is_loaded(...)', { unloaded }), false)
 
   eq(vim.tbl_contains(child.lua_get('GdevLsp.reconnect()'), unloaded), false)
@@ -240,7 +250,9 @@ T['toggle_inlay_hints()']['refuses when no attached server supports hints'] = ne
 })
 
 T['toggle_inlay_hints()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevLsp.toggle_inlay_hints("a")') end, '`buf_id`.*valid buffer id')
+  expect.error(function()
+    child.lua('GdevLsp.toggle_inlay_hints("a")')
+  end, '`buf_id`.*valid buffer id')
 end
 
 T['toggle_inlay_hints()']['respects `vim.{g,b}.gdevlsp_disable`'] = new_set({
@@ -261,7 +273,9 @@ T['toggle_inlay_hints()']['respects `vim.{g,b}.gdevlsp_disable`'] = new_set({
 -- Integration tests ==========================================================
 T['on_attach'] = new_set({
   hooks = {
-    pre_case = function() child.lua('_G.stub_inlay_hints(false)') end,
+    pre_case = function()
+      child.lua('_G.stub_inlay_hints(false)')
+    end,
   },
 })
 
@@ -346,7 +360,9 @@ T['on_attach']['respects `vim.{g,b}.gdevlsp_disable`'] = new_set({
 
 T['window/showMessage'] = new_set({
   hooks = {
-    pre_case = function() child.lua('_G.stub_show_message_handler()') end,
+    pre_case = function()
+      child.lua('_G.stub_show_message_handler()')
+    end,
   },
 })
 

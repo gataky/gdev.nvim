@@ -5,9 +5,15 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('docs', config) end
-local unload_module = function() child.gdev_unload('docs') end
-local type_keys = function(...) return child.type_keys(...) end
+local load_module = function(config)
+  child.gdev_load('docs', config)
+end
+local unload_module = function()
+  child.gdev_unload('docs')
+end
+local type_keys = function(...)
+  return child.type_keys(...)
+end
 
 -- Time constants scaled for CI (see `helpers.get_time_const`)
 local wait_timeout = helpers.get_time_const(5000)
@@ -20,7 +26,9 @@ local wait_for = function(cond)
   eq(child.lua_get(code), true)
 end
 
-local wait_for_docs = function() wait_for('_G.docs_win() ~= nil') end
+local wait_for_docs = function()
+  wait_for('_G.docs_win() ~= nil')
+end
 
 -- Nothing here touches the network. The documentation source is a fixture tree
 -- under 'tests/dir-docs/site' fetched over `file://`, which `curl` supports,
@@ -75,7 +83,9 @@ local install_fixtures = function()
   ]])
 end
 
-local site = function() return child.lua_get('_G.site') end
+local site = function()
+  return child.lua_get('_G.site')
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -160,7 +170,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -275,14 +287,19 @@ T['open()']['renders in a split'] = new_set({
   parametrize = { { 'right' }, { 'bottom' }, { 'current' } },
 }, {
   test = function(position)
-    local code = 'GdevDocs.open("Node", { renderer = "buffer", buffer = { position = %s, size = 0.5 } })'
+    local code =
+      'GdevDocs.open("Node", { renderer = "buffer", buffer = { position = %s, size = 0.5 } })'
     child.lua(code:format(vim.inspect(position)))
     wait_for_docs()
 
     eq(child.lua_get('_G.docs_config().relative'), '')
     eq(child.lua_get('#vim.api.nvim_list_wins()'), position == 'current' and 1 or 2)
-    if position == 'right' then eq(child.lua_get('vim.api.nvim_win_get_width(_G.docs_win())'), 40) end
-    if position == 'bottom' then eq(child.lua_get('vim.api.nvim_win_get_height(_G.docs_win())'), 12) end
+    if position == 'right' then
+      eq(child.lua_get('vim.api.nvim_win_get_width(_G.docs_win())'), 40)
+    end
+    if position == 'bottom' then
+      eq(child.lua_get('vim.api.nvim_win_get_height(_G.docs_win())'), 12)
+    end
 
     eq(child.lua_get('vim.api.nvim_buf_get_name(_G.docs_buf())'), 'gdev://docs/node')
     eq(child.lua_get('vim.bo[_G.docs_buf()].buftype'), 'nofile')
@@ -364,14 +381,19 @@ T['open()']['reports having nothing to look up'] = function()
 end
 
 T['open()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevDocs.open(1)') end, 'symbol.*string')
+  expect.error(function()
+    child.lua('GdevDocs.open(1)')
+  end, 'symbol.*string')
 end
 
 T['open()']['falls back to the browser when the source can not be fetched'] = function()
   eq(child.lua_get('GdevDocs.open("Nonexistent")'), true)
   wait_for('_G.opened ~= nil')
 
-  eq(child.lua_get('_G.opened'), 'https://docs.godotengine.org/en/stable/classes/class_nonexistent.html')
+  eq(
+    child.lua_get('_G.opened'),
+    'https://docs.godotengine.org/en/stable/classes/class_nonexistent.html'
+  )
   eq(child.lua_get('_G.docs_win()'), vim.NIL)
 end
 
@@ -395,7 +417,8 @@ T['open()']['reports an unknown symbol when there is no fallback'] = new_set({
   parametrize = { { 'message' }, { 'notify' } },
 }, {
   test = function(mode)
-    local code = 'GdevDocs.open("Nonexistent", { fallback_renderer = false, missing_symbol_feedback = %s })'
+    local code =
+      'GdevDocs.open("Nonexistent", { fallback_renderer = false, missing_symbol_feedback = %s })'
     child.lua(code:format(vim.inspect(mode)))
 
     local reported = mode == 'message' and '_G.echoes[1]' or '_G.last_message()'
@@ -403,7 +426,9 @@ T['open()']['reports an unknown symbol when there is no fallback'] = new_set({
     expect.match(child.lua_get(reported), 'no documentation for `Nonexistent`')
     eq(child.lua_get('_G.opened'), vim.NIL)
 
-    if mode == 'notify' then eq(child.lua_get('_G.notifications[1].level'), child.lua_get('vim.log.levels.WARN')) end
+    if mode == 'notify' then
+      eq(child.lua_get('_G.notifications[1].level'), child.lua_get('vim.log.levels.WARN'))
+    end
   end,
 })
 
@@ -478,7 +503,9 @@ T['close()']['restores what the only window was showing'] = function()
   eq(child.get_lines(), { 'local text' })
 end
 
-T['close()']['does nothing when no window is open'] = function() eq(child.lua_get('GdevDocs.close()'), false) end
+T['close()']['does nothing when no window is open'] = function()
+  eq(child.lua_get('GdevDocs.close()'), false)
+end
 
 T['close()']['works while disabled'] = function()
   -- A disabled module must not be able to strand a window it opened
@@ -550,7 +577,9 @@ T['get_url()']['reports nothing to look up'] = function()
 end
 
 T['get_url()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevDocs.get_url(1)') end, 'symbol.*string')
+  expect.error(function()
+    child.lua('GdevDocs.get_url(1)')
+  end, 'symbol.*string')
 end
 
 T['get_url()']['works while disabled'] = function()
@@ -714,7 +743,9 @@ T['user commands']['read the word under the cursor'] = function()
   expect.match(child.lua_get('_G.docs_text()'), '# Sprite2D')
 
   -- `:GdevDocsCursor` takes no argument, unlike every other command here
-  expect.error(function() child.cmd('GdevDocsCursor Node') end, 'E488')
+  expect.error(function()
+    child.cmd('GdevDocsCursor Node')
+  end, 'E488')
 end
 
 T['rendering'] = new_set()

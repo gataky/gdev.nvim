@@ -124,7 +124,9 @@ H.godot_advice = {
 
 -- Helper functionality =======================================================
 -- Module state ---------------------------------------------------------------
-H.global = function(module) return 'Gdev' .. module:sub(1, 1):upper() .. module:sub(2) end
+H.global = function(module)
+  return 'Gdev' .. module:sub(1, 1):upper() .. module:sub(2)
+end
 
 -- Public table of a module, or `nil` after reporting that it was never set up.
 -- Health never `require()`s a module: loading one would report the defaults it
@@ -132,11 +134,15 @@ H.global = function(module) return 'Gdev' .. module:sub(1, 1):upper() .. module:
 -- question a health check exists to answer.
 H.module = function(module)
   local mod = _G[H.global(module)]
-  if mod ~= nil then return mod end
+  if mod ~= nil then
+    return mod
+  end
 
   -- An informational level on purpose: not setting up a module is a supported
   -- choice, not a fault, and `:checkhealth` is a reasonable first thing to run
-  vim.health.info(("`gdev.%s` is not set up; call `require('gdev.%s').setup()` to use it"):format(module, module))
+  vim.health.info(
+    ("`gdev.%s` is not set up; call `require('gdev.%s').setup()` to use it"):format(module, module)
+  )
   return nil
 end
 
@@ -146,10 +152,14 @@ end
 -- could not be asked at all.
 H.query = function(module, query, ...)
   local mod = H.module(module)
-  if mod == nil then return nil, false end
+  if mod == nil then
+    return nil, false
+  end
 
   local ok, result = pcall(mod[query], ...)
-  if ok then return result, true end
+  if ok then
+    return result, true
+  end
 
   vim.health.error(('`%s.%s()` raised: %s'):format(H.global(module), query, result))
   return nil, false
@@ -161,7 +171,9 @@ end
 -- loses every section after it.
 H.run = function(argv)
   local spawned, proc = pcall(vim.system, argv, { text = true })
-  if not spawned then return nil end
+  if not spawned then
+    return nil
+  end
 
   local finished, out = pcall(proc.wait, proc, H.timeout_ms)
   return finished and out or nil
@@ -171,10 +183,14 @@ end
 -- what a machine without a prober gets -- reported as such, since a guess here
 -- would send someone looking for a Godot setting that is already correct.
 H.port_open = function(host, port)
-  if vim.fn.executable(H.prober) ~= 1 then return nil end
+  if vim.fn.executable(H.prober) ~= 1 then
+    return nil
+  end
 
   local out = H.run({ H.prober, '-z', '-w', '1', host, tostring(port) })
-  if out == nil then return nil end
+  if out == nil then
+    return nil
+  end
 
   return out.code == 0
 end
@@ -183,7 +199,9 @@ end
 -- `4.3.stable.official.77dcf97d8`. `nil` when the binary did not answer.
 H.godot_version = function(executable)
   local out = H.run({ executable, '--version' })
-  if out == nil or out.code ~= 0 then return nil end
+  if out == nil or out.code ~= 0 then
+    return nil
+  end
 
   local version = vim.trim(vim.split(out.stdout or '', '\n')[1] or '')
   return version ~= '' and version or nil
@@ -192,12 +210,19 @@ end
 -- Sections -------------------------------------------------------------------
 H.report_godot = function()
   local status = H.query('run', 'status')
-  if status == nil then return end
+  if status == nil then
+    return
+  end
 
-  vim.health.info('Project root: ' .. (status.root or 'no `project.godot` above the working directory'))
+  vim.health.info(
+    'Project root: ' .. (status.root or 'no `project.godot` above the working directory')
+  )
 
   if not status.executable then
-    return vim.health.error(('Godot executable `%s` not found'):format(status.godot), H.godot_advice)
+    return vim.health.error(
+      ('Godot executable `%s` not found'):format(status.godot),
+      H.godot_advice
+    )
   end
 
   local path = vim.fn.exepath(status.godot)
@@ -216,7 +241,9 @@ H.report_godot = function()
   if major == nil then
     return vim.health.info('That does not start with `major.minor`, so the 4.3 check was skipped')
   end
-  if tonumber(major) > 4 or (tonumber(major) == 4 and tonumber(minor) >= 3) then return end
+  if tonumber(major) > 4 or (tonumber(major) == 4 and tonumber(minor) >= 3) then
+    return
+  end
 
   vim.health.warn(('Godot %s.%s is older than 4.3'):format(major, minor), {
     'This plugin targets Godot 4.3 and later. Older editors lack settings and endpoints it expects, so parts of '
@@ -248,24 +275,35 @@ end
 -- the editor belongs to the session, not to a buffer.
 H.report_port = function(module, what, setting)
   local mod = H.module(module)
-  if mod == nil then return end
+  if mod == nil then
+    return
+  end
 
   local config = mod.config
   local target = ('%s:%s'):format(config.host, config.port)
 
   local open = H.port_open(config.host, config.port)
-  if open == nil then return vim.health.info(('Godot editor %s expected at %s'):format(what, target)) end
-  if open then return vim.health.ok(('Godot editor %s answers on %s'):format(what, target)) end
+  if open == nil then
+    return vim.health.info(('Godot editor %s expected at %s'):format(what, target))
+  end
+  if open then
+    return vim.health.ok(('Godot editor %s answers on %s'):format(what, target))
+  end
 
-  vim.health.warn(('Nothing answers on %s, where the Godot editor %s is expected'):format(target, what), {
-    'Start the Godot editor and open the project; the server is part of the editor, not of the running game.',
-    ('Check that %s matches port %s.'):format(setting, config.port),
-  })
+  vim.health.warn(
+    ('Nothing answers on %s, where the Godot editor %s is expected'):format(target, what),
+    {
+      'Start the Godot editor and open the project; the server is part of the editor, not of the running game.',
+      ('Check that %s matches port %s.'):format(setting, config.port),
+    }
+  )
 end
 
 H.report_server = function()
   local status = H.query('server', 'status')
-  if status == nil then return end
+  if status == nil then
+    return
+  end
 
   if status.listening then
     vim.health.ok(('Neovim is listening on %s'):format(status.address))
@@ -285,7 +323,9 @@ end
 
 H.report_treesitter = function()
   local status = H.query('treesitter', 'parser_status')
-  if status == nil then return end
+  if status == nil then
+    return
+  end
 
   local filetypes = vim.tbl_keys(status)
   table.sort(filetypes)
@@ -295,7 +335,10 @@ H.report_treesitter = function()
     if parser.available then
       vim.health.ok(("'%s' parser found, used for %s files"):format(parser.lang, filetype))
     else
-      local msg = ("No '%s' parser, so %s files fall back to regular syntax highlighting"):format(parser.lang, filetype)
+      local msg = ("No '%s' parser, so %s files fall back to regular syntax highlighting"):format(
+        parser.lang,
+        filetype
+      )
       vim.health.warn(msg, H.parser_advice)
     end
   end
@@ -303,13 +346,19 @@ end
 
 H.report_formatter = function()
   local argv, asked = H.query('format', 'get_command')
-  if not asked then return end
-  if argv == nil then return vim.health.info('Formatting is turned off (`formatter = false`)') end
+  if not asked then
+    return
+  end
+  if argv == nil then
+    return vim.health.info('Formatting is turned off (`formatter = false`)')
+  end
 
   vim.health.info('Command: ' .. table.concat(argv, ' ') .. ' <file>')
 
   local executable = argv[1]
-  if vim.fn.executable(executable) == 1 then return vim.health.ok(("'%s' found"):format(executable)) end
+  if vim.fn.executable(executable) == 1 then
+    return vim.health.ok(("'%s' found"):format(executable))
+  end
 
   local advice = H.formatter_advice[executable]
     or { 'Put it on $PATH, or give `command` in `require("gdev.format").setup()` its full path.' }
@@ -318,36 +367,54 @@ end
 
 H.report_docs = function()
   local status = H.query('docs', 'status')
-  if status == nil then return end
+  if status == nil then
+    return
+  end
 
-  vim.health.info(('Renderer: %s (fallback: %s)'):format(status.renderer, tostring(status.fallback_renderer)))
+  vim.health.info(
+    ('Renderer: %s (fallback: %s)'):format(status.renderer, tostring(status.fallback_renderer))
+  )
   vim.health.info('Source: ' .. status.source_url)
   vim.health.info('Website: ' .. status.page_url)
 
   local cache = status.cache
-  local held = cache.enabled and ('%d of %d pages'):format(cache.entries, cache.max_entries) or 'disabled'
+  local held = cache.enabled and ('%d of %d pages'):format(cache.entries, cache.max_entries)
+    or 'disabled'
   vim.health.info('Cache: ' .. held)
 
   -- The website renderer opens a published page, so nothing is ever fetched
   if status.renderer == 'browser' then
-    return vim.health.info(("The '%s' renderer fetches nothing, so it needs no fetcher"):format(status.renderer))
+    return vim.health.info(
+      ("The '%s' renderer fetches nothing, so it needs no fetcher"):format(status.renderer)
+    )
   end
 
-  if status.curl then return vim.health.ok("'curl' found") end
+  if status.curl then
+    return vim.health.ok("'curl' found")
+  end
 
-  vim.health.warn(("'curl' not found, so the '%s' renderer cannot fetch a page"):format(status.renderer), {
-    'Install curl, or set `renderer = "browser"` in `require("gdev.docs").setup()` to read the pages on the website.',
-  })
+  vim.health.warn(
+    ("'curl' not found, so the '%s' renderer cannot fetch a page"):format(status.renderer),
+    {
+      'Install curl, or set `renderer = "browser"` in `require("gdev.docs").setup()` to read the pages on the website.',
+    }
+  )
 end
 
 H.report_scenetree = function()
   local status = H.query('scenetree', 'status')
-  if status == nil then return end
+  if status == nil then
+    return
+  end
 
-  vim.health.info(status.open and ('Pane is open, showing ' .. (status.scene or 'nothing')) or 'Pane is closed')
+  vim.health.info(
+    status.open and ('Pane is open, showing ' .. (status.scene or 'nothing')) or 'Pane is closed'
+  )
   vim.health.info('Node icons: ' .. (status.icons == false and 'off' or tostring(status.icons)))
 
-  if status.icons ~= 'nerdfont' then return end
+  if status.icons ~= 'nerdfont' then
+    return
+  end
 
   vim.health.warn('Node icons are Nerd Font glyphs, which need a patched font', {
     'Boxes or blanks in the pane mean your terminal font has no glyphs for them.',

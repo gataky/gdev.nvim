@@ -5,8 +5,12 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('server', config) end
-local unload_module = function() child.gdev_unload('server') end
+local load_module = function(config)
+  child.gdev_load('server', config)
+end
+local unload_module = function()
+  child.gdev_unload('server')
+end
 
 -- Fixture addresses. Relative on purpose: `sun_path` is capped at ~104 bytes,
 -- which an absolute path into a checkout can exceed.
@@ -78,7 +82,9 @@ local install_stubs = function()
   ]])
 end
 
-local servername = function() return child.lua_get('vim.v.servername') end
+local servername = function()
+  return child.lua_get('vim.v.servername')
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -133,7 +139,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -260,7 +268,10 @@ T['start()']['reports a failure to remove the stale socket'] = function()
 
   -- Starting anyway would fail with a message about the wrong problem
   eq(child.lua_get('_G.attempts'), {})
-  expect.match(child.lua_get('_G.notified("ERROR")')[1], 'could not remove the stale socket.*EACCES')
+  expect.match(
+    child.lua_get('_G.notified("ERROR")')[1],
+    'could not remove the stale socket.*EACCES'
+  )
 end
 
 T['start()']['leaves a file that is not a socket alone'] = function()
@@ -289,7 +300,9 @@ T['start()']['never removes a file behind an address with a port'] = function()
 end
 
 T['start()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevServer.start(1)') end, '`address`.*string')
+  expect.error(function()
+    child.lua('GdevServer.start(1)')
+  end, '`address`.*string')
 end
 
 T['start()']['respects `vim.b.gdevserver_config`'] = function()

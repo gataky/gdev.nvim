@@ -5,9 +5,15 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('scenetree', config) end
-local unload_module = function() child.gdev_unload('scenetree') end
-local type_keys = function(...) return child.type_keys(...) end
+local load_module = function(config)
+  child.gdev_load('scenetree', config)
+end
+local unload_module = function()
+  child.gdev_unload('scenetree')
+end
+local type_keys = function(...)
+  return child.type_keys(...)
+end
 
 -- Everything the pane does is asserted through the buffer, the window and the
 -- extmarks it creates; the module's own state is private.
@@ -75,7 +81,9 @@ local install_fixtures = function()
   ]])
 end
 
-local root = function() return child.lua_get('_G.root') end
+local root = function()
+  return child.lua_get('_G.root')
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -170,7 +178,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -189,7 +199,11 @@ T['setup()']['validates `config` argument'] = function()
   expect_config_error({ icon_colors = 'a' }, 'icon_colors', 'table')
   expect_config_error({ icon_colors = { generic = 1 } }, 'icon_colors.generic', 'string')
   expect_config_error({ icon_colors = { groups = 'a' } }, 'icon_colors.groups', 'table')
-  expect_config_error({ icon_colors = { groups = { Blue = 1 } } }, 'icon_colors.groups.Blue', 'string')
+  expect_config_error(
+    { icon_colors = { groups = { Blue = 1 } } },
+    'icon_colors.groups.Blue',
+    'string'
+  )
 
   expect_config_error({ mappings = 'a' }, 'mappings', 'table')
   expect_config_error({ mappings = { jump = 1 } }, 'mappings.jump', 'string')
@@ -220,18 +234,33 @@ T['get_nodes()']['parses a nested scene'] = function()
   child.lua('_G.open("Flat.tscn")')
   local nodes = child.lua_get('GdevScenetree.get_nodes("res://scenes/Nested.tscn")')
 
-  eq(vim.tbl_map(function(node) return node.path end, nodes), {
-    '.',
-    'Player',
-    'Player/Body',
-    'Player/Weapon',
-    'Player/Weapon/Tip',
-    'Ui',
-    'Ui/Score',
-  })
-  eq(vim.tbl_map(function(node) return node.depth end, nodes), { 0, 1, 2, 2, 3, 1, 2 })
+  eq(
+    vim.tbl_map(function(node)
+      return node.path
+    end, nodes),
+    {
+      '.',
+      'Player',
+      'Player/Body',
+      'Player/Weapon',
+      'Player/Weapon/Tip',
+      'Ui',
+      'Ui/Score',
+    }
+  )
+  eq(
+    vim.tbl_map(function(node)
+      return node.depth
+    end, nodes),
+    { 0, 1, 2, 2, 3, 1, 2 }
+  )
   -- Line numbers point at the `[node ...]` header, not the properties under it
-  eq(vim.tbl_map(function(node) return node.line end, nodes), { 3, 5, 8, 10, 12, 14, 16 })
+  eq(
+    vim.tbl_map(function(node)
+      return node.line
+    end, nodes),
+    { 3, 5, 8, 10, 12, 14, 16 }
+  )
 end
 
 T['get_nodes()']['resolves attached scripts through `ext_resource`'] = function()
@@ -313,7 +342,9 @@ T['get_nodes()']['answers for the pane with no argument'] = function()
 end
 
 T['get_nodes()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevScenetree.get_nodes(1)') end, vim.pesc('`scene` should be string'))
+  expect.error(function()
+    child.lua('GdevScenetree.get_nodes(1)')
+  end, vim.pesc('`scene` should be string'))
 end
 
 T['get_nodes()']['keeps answering while disabled'] = new_set({
@@ -447,7 +478,10 @@ T['open()']['asks which scene when several use the script'] = function()
   child.lua('_G.open("scripts/shared.gd"); _G.choice = 2')
 
   eq(child.lua_get('GdevScenetree.open()'), true)
-  eq(child.lua_get('_G.selected.items'), { 'res://scenes/Scripted.tscn', 'res://scenes/Shared.tscn' })
+  eq(
+    child.lua_get('_G.selected.items'),
+    { 'res://scenes/Scripted.tscn', 'res://scenes/Shared.tscn' }
+  )
   expect.match(child.lua_get('_G.selected.prompt'), 'res://scripts/shared%.gd')
   eq(child.lua_get('_G.lines()')[1], 'Scene: res://scenes/Shared.tscn')
 end
@@ -470,7 +504,10 @@ T['open()']['reports a buffer that is neither'] = function()
   child.lua('_G.open("project.godot")')
 
   eq(child.lua_get('GdevScenetree.open()'), false)
-  expect.match(child.lua_get('_G.last_message()'), 'project%.godot is neither a scene nor a Godot script')
+  expect.match(
+    child.lua_get('_G.last_message()'),
+    'project%.godot is neither a scene nor a Godot script'
+  )
 end
 
 T['open()']['reports a buffer with no file'] = function()
@@ -527,7 +564,9 @@ T['open()']['respects `config.script_extensions`'] = function()
 end
 
 T['open()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevScenetree.open(1)') end, vim.pesc('`scene` should be string'))
+  expect.error(function()
+    child.lua('GdevScenetree.open(1)')
+  end, vim.pesc('`scene` should be string'))
 end
 
 T['open()']['respects `vim.b.gdevscenetree_config`'] = function()
@@ -632,7 +671,9 @@ T['close()']['closes the window and keeps the buffer'] = function()
   eq(child.lua_get('_G.lines()')[1], 'Scene: res://Flat.tscn')
 end
 
-T['close()']['reports a pane that is not open'] = function() eq(child.lua_get('GdevScenetree.close()'), false) end
+T['close()']['reports a pane that is not open'] = function()
+  eq(child.lua_get('GdevScenetree.close()'), false)
+end
 
 T['close()']['refuses to close the last window'] = function()
   child.lua('_G.open("Flat.tscn"); GdevScenetree.open()')
@@ -1066,7 +1107,9 @@ end
 
 T['mappings'] = new_set({
   hooks = {
-    pre_case = function() child.lua('_G.open("scenes/Scripted.tscn"); GdevScenetree.open()') end,
+    pre_case = function()
+      child.lua('_G.open("scenes/Scripted.tscn"); GdevScenetree.open()')
+    end,
   },
 })
 

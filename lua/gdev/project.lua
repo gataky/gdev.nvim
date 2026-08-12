@@ -31,11 +31,17 @@ local H = {}
 -- with `==` against anything else this module returns.
 Project.find_root = function(path)
   local start = path
-  if type(start) ~= 'string' or start == '' then start = vim.uv.cwd() or '.' end
-  if vim.fn.isdirectory(start) == 0 then start = vim.fs.dirname(start) end
+  if type(start) ~= 'string' or start == '' then
+    start = vim.uv.cwd() or '.'
+  end
+  if vim.fn.isdirectory(start) == 0 then
+    start = vim.fs.dirname(start)
+  end
 
   local marker = vim.fs.find(H.marker, { upward = true, path = start, type = 'file' })[1]
-  if marker == nil then return nil end
+  if marker == nil then
+    return nil
+  end
 
   -- |vim.fs.find()| answers in the same shape it was asked, so a relative
   -- `path` yields a relative root -- which every containment check downstream
@@ -55,13 +61,20 @@ end
 -- `root` itself maps to `res://`, which is what Godot calls the project root.
 Project.to_res = function(root, path)
   root = H.normalize_root(root)
-  if root == nil or type(path) ~= 'string' or path == '' then return nil end
+  if root == nil or type(path) ~= 'string' or path == '' then
+    return nil
+  end
 
   local relative = path:match('^res://(.*)$') or path
-  local absolute = vim.fs.normalize(vim.startswith(relative, '/') and relative or (root .. '/' .. relative))
+  local absolute =
+    vim.fs.normalize(vim.startswith(relative, '/') and relative or (root .. '/' .. relative))
 
-  if absolute == root then return 'res://' end
-  if not vim.startswith(absolute, root .. '/') then return nil end
+  if absolute == root then
+    return 'res://'
+  end
+  if not vim.startswith(absolute, root .. '/') then
+    return nil
+  end
 
   return 'res://' .. absolute:sub(#root + 2)
 end
@@ -72,20 +85,28 @@ end
 -- exist.
 Project.to_path = function(root, res)
   root = H.normalize_root(root)
-  if root == nil or type(res) ~= 'string' then return nil end
+  if root == nil or type(res) ~= 'string' then
+    return nil
+  end
 
   local relative = res:match('^res://(.*)$')
-  if relative == nil then return nil end
+  if relative == nil then
+    return nil
+  end
 
   local absolute = vim.fs.normalize(root .. '/' .. relative)
-  if absolute ~= root and not vim.startswith(absolute, root .. '/') then return nil end
+  if absolute ~= root and not vim.startswith(absolute, root .. '/') then
+    return nil
+  end
 
   return absolute
 end
 
 -- Every scene in the project, as sorted `res://` names. Empty when `root` is
 -- `nil` or holds no scenes.
-Project.list_scenes = function(root) return H.to_res_list(root, H.scene_files(root)) end
+Project.list_scenes = function(root)
+  return H.to_res_list(root, H.scene_files(root))
+end
 
 -- Sorted `res://` names of the scenes that reference `script`, which may be
 -- given in any form `Project.to_res()` accepts.
@@ -101,16 +122,22 @@ Project.list_scenes = function(root) return H.to_res_list(root, H.scene_files(ro
 -- first.
 Project.scenes_with_script = function(root, script)
   local res = Project.to_res(root, script)
-  if res == nil then return {} end
+  if res == nil then
+    return {}
+  end
 
   local needle = '"' .. res .. '"'
-  local used = vim.tbl_filter(function(path) return H.file_contains(path, needle) end, H.scene_files(root))
+  local used = vim.tbl_filter(function(path)
+    return H.file_contains(path, needle)
+  end, H.scene_files(root))
 
   return H.to_res_list(root, used)
 end
 
 -- Whether `path` names a Godot scene file.
-Project.is_scene = function(path) return H.has_extension(path, { H.scene_extension }) end
+Project.is_scene = function(path)
+  return H.has_extension(path, { H.scene_extension })
+end
 
 -- Whether `path` names a Godot script, according to `extensions` -- bare
 -- extensions without the dot, `nil` for `{ 'gd' }`.
@@ -118,7 +145,9 @@ Project.is_scene = function(path) return H.has_extension(path, { H.scene_extensi
 -- That list is the C# seam. Every entry point that starts from "the script I am
 -- looking at" goes through here, so adding `'cs'` to a module's configured list
 -- is all C# support needs from this file.
-Project.is_script = function(path, extensions) return H.has_extension(path, extensions or H.default_script_extensions) end
+Project.is_script = function(path, extensions)
+  return H.has_extension(path, extensions or H.default_script_extensions)
+end
 
 -- Helper data ================================================================
 -- File whose presence marks a directory as the root of a Godot project
@@ -130,13 +159,17 @@ H.default_script_extensions = { 'gd' }
 
 -- Helper functionality =======================================================
 H.normalize_root = function(root)
-  if type(root) ~= 'string' or root == '' then return nil end
+  if type(root) ~= 'string' or root == '' then
+    return nil
+  end
   return H.absolute(root)
 end
 
 -- Symlinks are deliberately not resolved: a buffer name keeps whatever path the
 -- file was opened by, and a root that resolved them would stop matching it.
-H.absolute = function(path) return vim.fs.normalize(vim.fn.fnamemodify(path, ':p')) end
+H.absolute = function(path)
+  return vim.fs.normalize(vim.fn.fnamemodify(path, ':p'))
+end
 
 -- Absolute paths of every scene file in the project.
 --
@@ -147,7 +180,9 @@ H.absolute = function(path) return vim.fs.normalize(vim.fn.fnamemodify(path, ':p
 -- this is ever rewritten on top of |vim.fs.find()|, which has no such rule.
 H.scene_files = function(root)
   root = H.normalize_root(root)
-  if root == nil then return {} end
+  if root == nil then
+    return {}
+  end
   return vim.fn.globpath(root, '**/*.' .. H.scene_extension, true, true)
 end
 
@@ -155,7 +190,9 @@ H.to_res_list = function(root, paths)
   local res_paths = {}
   for _, path in ipairs(paths) do
     local res = Project.to_res(root, path)
-    if res ~= nil then table.insert(res_paths, res) end
+    if res ~= nil then
+      table.insert(res_paths, res)
+    end
   end
 
   -- Redundant against today's `globpath()`, which sorts its own matches, but
@@ -167,12 +204,18 @@ end
 
 H.file_contains = function(path, needle)
   local ok, lines = pcall(vim.fn.readfile, path)
-  if not ok then return false end
-  return vim.iter(lines):any(function(line) return line:find(needle, 1, true) ~= nil end)
+  if not ok then
+    return false
+  end
+  return vim.iter(lines):any(function(line)
+    return line:find(needle, 1, true) ~= nil
+  end)
 end
 
 H.has_extension = function(path, extensions)
-  if type(path) ~= 'string' or type(extensions) ~= 'table' then return false end
+  if type(path) ~= 'string' or type(extensions) ~= 'table' then
+    return false
+  end
 
   local extension = path:match('%.([^./]+)$')
   return extension ~= nil and vim.tbl_contains(extensions, extension)

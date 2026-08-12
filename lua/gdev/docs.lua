@@ -165,7 +165,9 @@ GdevDocs.config = {
 ---
 ---@return boolean Whether a lookup was started.
 GdevDocs.open = function(symbol, opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   H.check_type('symbol', symbol, 'string', true)
 
@@ -191,7 +193,9 @@ GdevDocs.open = function(symbol, opts)
 
   H.fetch(urls.source, config, function(text, err)
     local markdown = Rst.to_markdown(text)
-    if markdown == '' then return H.recover(urls, err, config) end
+    if markdown == '' then
+      return H.recover(urls, err, config)
+    end
 
     H.render(urls, H.cache_put(urls.source, markdown, config), config)
   end)
@@ -210,7 +214,9 @@ end
 ---@return boolean Whether a window was closed.
 GdevDocs.close = function()
   local win_id = H.docs.win_id
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return false end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return false
+  end
 
   H.docs.win_id = nil
 
@@ -220,7 +226,9 @@ GdevDocs.close = function()
   end
 
   local previous = H.docs.prev_buf
-  if previous == nil or not vim.api.nvim_buf_is_valid(previous) then previous = vim.api.nvim_create_buf(true, false) end
+  if previous == nil or not vim.api.nvim_buf_is_valid(previous) then
+    previous = vim.api.nvim_create_buf(true, false)
+  end
   vim.api.nvim_win_set_buf(win_id, previous)
   return true
 end
@@ -340,25 +348,39 @@ H.setup_config = function(config)
 end
 
 H.check_one_of = function(field, value, allowed)
-  if vim.tbl_contains(allowed, value) then return end
+  if vim.tbl_contains(allowed, value) then
+    return
+  end
   local quoted = vim.tbl_map(vim.inspect, allowed)
-  H.error(('`%s` should be one of %s, not %s'):format(field, table.concat(quoted, ', '), vim.inspect(value)))
+  H.error(
+    ('`%s` should be one of %s, not %s'):format(
+      field,
+      table.concat(quoted, ', '),
+      vim.inspect(value)
+    )
+  )
 end
 
 H.check_fraction = function(field, value)
-  if type(value) == 'number' and 0 < value and value <= 1 then return end
+  if type(value) == 'number' and 0 < value and value <= 1 then
+    return
+  end
   H.error(('`%s` should be a number between 0 and 1, not %s'):format(field, vim.inspect(value)))
 end
 
 H.check_positive = function(field, value)
-  if type(value) == 'number' and value >= 1 then return end
+  if type(value) == 'number' and value >= 1 then
+    return
+  end
   H.error(('`%s` should be a number of at least 1, not %s'):format(field, vim.inspect(value)))
 end
 
 -- |nvim_open_win()| takes a border style by name or as an array of characters,
 -- and both are worth allowing through
 H.check_border = function(field, value)
-  if type(value) == 'string' or type(value) == 'table' then return end
+  if type(value) == 'string' or type(value) == 'table' then
+    return
+  end
   H.error(('`%s` should be a string or table, not %s'):format(field, type(value)))
 end
 
@@ -367,23 +389,37 @@ H.apply_config = function(config)
 
   -- Turning the cache off should also free what it holds, and lowering
   -- `max_entries` should take effect now rather than at the next lookup
-  if not config.cache.enabled then H.cache.entries = {} end
+  if not config.cache.enabled then
+    H.cache.entries = {}
+  end
   H.cache_trim(config.cache.max_entries)
 end
 
 H.create_user_commands = function()
   local open = function(renderer)
-    return function(data) GdevDocs.open(data.args, renderer ~= nil and { renderer = renderer } or nil) end
+    return function(data)
+      GdevDocs.open(data.args, renderer ~= nil and { renderer = renderer } or nil)
+    end
   end
   local command = function(name, callback, opts)
     vim.api.nvim_create_user_command(name, callback, vim.tbl_extend('force', { nargs = '?' }, opts))
   end
 
   command('GdevDocs', open(nil), { desc = 'Open Godot class documentation' })
-  command('GdevDocsFloat', open('float'), { desc = 'Open Godot class documentation in a floating window' })
+  command(
+    'GdevDocsFloat',
+    open('float'),
+    { desc = 'Open Godot class documentation in a floating window' }
+  )
   command('GdevDocsBuffer', open('buffer'), { desc = 'Open Godot class documentation in a split' })
-  command('GdevDocsBrowser', open('browser'), { desc = 'Open Godot class documentation in the browser' })
-  command('GdevDocsCursor', function() GdevDocs.open() end, {
+  command(
+    'GdevDocsBrowser',
+    open('browser'),
+    { desc = 'Open Godot class documentation in the browser' }
+  )
+  command('GdevDocsCursor', function()
+    GdevDocs.open()
+  end, {
     nargs = 0,
     desc = 'Open Godot class documentation for the word under the cursor',
   })
@@ -392,17 +428,23 @@ end
 -- Symbols and URLs -----------------------------------------------------------
 H.resolve_symbol = function(symbol)
   local resolved = vim.trim(symbol or '')
-  if resolved ~= '' then return resolved end
+  if resolved ~= '' then
+    return resolved
+  end
 
   return vim.trim(vim.fn.expand('<cword>'))
 end
 
 -- Godot's generator lowercases the class name and strips spaces to get a file
 -- name, so `@GDScript` really is `class_@gdscript.rst`
-H.slug = function(symbol) return (symbol:lower():gsub('%s+', '')) end
+H.slug = function(symbol)
+  return (symbol:lower():gsub('%s+', ''))
+end
 
 H.urls = function(symbol, config)
-  if symbol == '' then return nil end
+  if symbol == '' then
+    return nil
+  end
 
   local slug = H.slug(symbol)
   return {
@@ -415,41 +457,61 @@ end
 
 H.source_base = function(config)
   local base = config.source_base_url
-  if type(base) == 'string' and base ~= '' then return (base:gsub('/+$', '')) end
+  if type(base) == 'string' and base ~= '' then
+    return (base:gsub('/+$', ''))
+  end
 
   return ('https://raw.githubusercontent.com/godotengine/godot-docs/%s'):format(config.source_ref)
 end
 
-H.page_base = function(config) return ('https://docs.godotengine.org/%s/%s'):format(config.language, config.version) end
+H.page_base = function(config)
+  return ('https://docs.godotengine.org/%s/%s'):format(config.language, config.version)
+end
 
 -- Fetching -------------------------------------------------------------------
 -- Calls back with the fetched text, or with `nil` and a reason. Both happen on
 -- the main loop, so the callback may touch buffers.
 H.fetch = function(url, config, on_done)
   if vim.fn.executable(H.fetcher) ~= 1 then
-    return on_done(nil, ('`%s` is not executable, and is what fetches the documentation'):format(H.fetcher))
+    return on_done(
+      nil,
+      ('`%s` is not executable, and is what fetches the documentation'):format(H.fetcher)
+    )
   end
 
   -- Two timeouts for one deadline: `--max-time` lets curl fail with a message
   -- of its own, and |vim.system()|'s kills a curl that ignores it
   local argv = { H.fetcher, '-fsSL', '--max-time', ('%.3f'):format(config.timeout_ms / 1000), url }
-  local ok, err = pcall(vim.system, argv, { text = true, timeout = config.timeout_ms }, function(out)
-    vim.schedule(function()
-      local text = out.stdout or ''
-      if out.code == 0 and text ~= '' then return on_done(text) end
-      on_done(nil, H.fetch_error(out, url))
-    end)
-  end)
+  local ok, err = pcall(
+    vim.system,
+    argv,
+    { text = true, timeout = config.timeout_ms },
+    function(out)
+      vim.schedule(function()
+        local text = out.stdout or ''
+        if out.code == 0 and text ~= '' then
+          return on_done(text)
+        end
+        on_done(nil, H.fetch_error(out, url))
+      end)
+    end
+  )
 
   -- |vim.system()| raises rather than returning when the command cannot be
   -- spawned at all, which the probe above should have prevented
-  if not ok then on_done(nil, tostring(err)) end
+  if not ok then
+    on_done(nil, tostring(err))
+  end
 end
 
 H.fetch_error = function(out, url)
   local reported = vim.trim(out.stderr or '')
-  if reported ~= '' then return reported end
-  if out.code == 0 then return ('%s is empty'):format(url) end
+  if reported ~= '' then
+    return reported
+  end
+  if out.code == 0 then
+    return ('%s is empty'):format(url)
+  end
 
   return ('%s exited with %d fetching %s'):format(H.fetcher, out.code, url)
 end
@@ -457,16 +519,23 @@ end
 -- What a failed or empty fetch turns into: the browser when it can recover the
 -- page, and a report when nothing can
 H.recover = function(urls, err, config)
-  if config.fallback_renderer == 'browser' then return H.open_browser(urls.page) end
+  if config.fallback_renderer == 'browser' then
+    return H.open_browser(urls.page)
+  end
 
-  H.feedback(('no documentation for `%s` (%s)'):format(urls.symbol, err or 'nothing was returned'), config)
+  H.feedback(
+    ('no documentation for `%s` (%s)'):format(urls.symbol, err or 'nothing was returned'),
+    config
+  )
 end
 
 -- Rendering ------------------------------------------------------------------
 H.render = function(urls, markdown, config)
   local lines = H.page_lines(urls, markdown)
 
-  if config.renderer == 'buffer' then return H.open_split(urls, lines, config) end
+  if config.renderer == 'buffer' then
+    return H.open_split(urls, lines, config)
+  end
   H.open_float(urls, lines, config)
 end
 
@@ -480,7 +549,9 @@ end
 
 H.open_browser = function(url)
   local ok, err = vim.ui.open(url)
-  if ok == nil then H.notify(('could not open %s: %s'):format(url, err or 'no handler'), 'ERROR') end
+  if ok == nil then
+    H.notify(('could not open %s: %s'):format(url, err or 'no handler'), 'ERROR')
+  end
 end
 
 H.open_float = function(urls, lines, config)
@@ -518,7 +589,9 @@ end
 
 H.docs_buf = function()
   local buf_id = H.docs.buf_id
-  if buf_id ~= nil and vim.api.nvim_buf_is_valid(buf_id) then return buf_id end
+  if buf_id ~= nil and vim.api.nvim_buf_is_valid(buf_id) then
+    return buf_id
+  end
 
   buf_id = H.find_buf(H.buf_prefix)
   if buf_id == nil then
@@ -534,7 +607,9 @@ end
 
 H.find_buf = function(prefix)
   for _, buf_id in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.startswith(vim.api.nvim_buf_get_name(buf_id), prefix) then return buf_id end
+    if vim.startswith(vim.api.nvim_buf_get_name(buf_id), prefix) then
+      return buf_id
+    end
   end
 end
 
@@ -545,7 +620,12 @@ H.fill = function(buf_id, lines)
   vim.bo[buf_id].modified = false
   vim.bo[buf_id].filetype = 'markdown'
 
-  H.map('n', 'q', '<Cmd>lua GdevDocs.close()<CR>', { buffer = buf_id, desc = 'Close the Godot documentation' })
+  H.map(
+    'n',
+    'q',
+    '<Cmd>lua GdevDocs.close()<CR>',
+    { buffer = buf_id, desc = 'Close the Godot documentation' }
+  )
 end
 
 H.split_win = function(opts)
@@ -560,7 +640,8 @@ H.split_win = function(opts)
   local vertical = opts.position == 'right'
   local editor = vertical and vim.o.columns or vim.o.lines
   local win_config = { split = vertical and 'right' or 'below', win = -1 }
-  win_config[vertical and 'width' or 'height'] = math.max(math.floor(editor * opts.size), H.min_size)
+  win_config[vertical and 'width' or 'height'] =
+    math.max(math.floor(editor * opts.size), H.min_size)
 
   H.docs.prev_buf = nil
   return vim.api.nvim_open_win(H.docs_buf(), true, win_config)
@@ -568,23 +649,32 @@ end
 
 H.reusable_win = function()
   local win_id = H.docs.win_id
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return nil end
-  if vim.api.nvim_win_get_config(win_id).relative ~= '' then return nil end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return nil
+  end
+  if vim.api.nvim_win_get_config(win_id).relative ~= '' then
+    return nil
+  end
 
   return win_id
 end
 
 H.close_float = function()
   local win_id = H.docs.win_id
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return end
-  if vim.api.nvim_win_get_config(win_id).relative == '' then return end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return
+  end
+  if vim.api.nvim_win_get_config(win_id).relative == '' then
+    return
+  end
 
   pcall(vim.api.nvim_win_close, win_id, true)
   H.docs.win_id = nil
 end
 
 H.float_config = function(symbol, opts)
-  local width = math.min(math.max(math.floor(vim.o.columns * opts.width), H.min_size), vim.o.columns)
+  local width =
+    math.min(math.max(math.floor(vim.o.columns * opts.width), H.min_size), vim.o.columns)
   local height = math.min(math.max(math.floor(vim.o.lines * opts.height), H.min_size), vim.o.lines)
 
   local win_config = {
@@ -608,7 +698,9 @@ end
 -- Documentation is prose: wrapped at word boundaries, with nothing in the
 -- gutter and no cursor line, because nothing here acts on the cursor's line.
 H.window_options = function(win_id)
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return
+  end
 
   local wo = vim.wo[win_id]
   wo.wrap, wo.linebreak, wo.number, wo.relativenumber = true, true, false, false
@@ -618,10 +710,14 @@ end
 
 -- Caching --------------------------------------------------------------------
 H.cache_get = function(key, config)
-  if not config.cache.enabled then return nil end
+  if not config.cache.enabled then
+    return nil
+  end
 
   local entry = H.cache.entries[key]
-  if entry == nil then return nil end
+  if entry == nil then
+    return nil
+  end
 
   H.cache.clock = H.cache.clock + 1
   entry.used = H.cache.clock
@@ -629,7 +725,9 @@ H.cache_get = function(key, config)
 end
 
 H.cache_put = function(key, value, config)
-  if not config.cache.enabled then return value end
+  if not config.cache.enabled then
+    return value
+  end
 
   H.cache.clock = H.cache.clock + 1
   H.cache.entries[key] = { value = value, used = H.cache.clock }
@@ -648,7 +746,9 @@ H.cache_trim = function(max_entries)
         oldest, oldest_used = key, entry.used
       end
     end
-    if oldest == nil then return end
+    if oldest == nil then
+      return
+    end
 
     H.cache.entries[oldest] = nil
     count = count - 1
@@ -660,7 +760,9 @@ end
 H.prefix = '(gdev.docs) '
 
 H.feedback = function(message, config)
-  if config.missing_symbol_feedback == 'notify' then return H.notify(message, 'WARN') end
+  if config.missing_symbol_feedback == 'notify' then
+    return H.notify(message, 'WARN')
+  end
 
   vim.api.nvim_echo({ { H.prefix .. message, 'WarningMsg' } }, false, {})
 end

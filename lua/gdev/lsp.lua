@@ -101,7 +101,9 @@ GdevLsp.config = {
 ---
 ---@return table Array of buffer ids that were considered for attachment.
 GdevLsp.reconnect = function()
-  if H.is_disabled() then return {} end
+  if H.is_disabled() then
+    return {}
+  end
 
   local buffers = vim.tbl_filter(H.is_godot_buffer, vim.api.nvim_list_bufs())
 
@@ -128,7 +130,9 @@ end
 ---@return boolean|nil Whether hints are now shown, or `nil` if no attached
 ---   server supports them.
 GdevLsp.toggle_inlay_hints = function(buf_id)
-  if H.is_disabled() then return nil end
+  if H.is_disabled() then
+    return nil
+  end
 
   buf_id = H.validate_buf_id(buf_id)
 
@@ -177,15 +181,21 @@ H.setup_config = function(config)
   return config
 end
 
-H.apply_config = function(config) GdevLsp.config = config end
+H.apply_config = function(config)
+  GdevLsp.config = config
+end
 
 H.create_user_commands = function()
-  local reconnect = function(_) GdevLsp.reconnect() end
+  local reconnect = function(_)
+    GdevLsp.reconnect()
+  end
   vim.api.nvim_create_user_command('GdevLspReconnect', reconnect, {
     desc = 'Reconnect Godot buffers to the editor language server',
   })
 
-  local toggle_hints = function(_) GdevLsp.toggle_inlay_hints(0) end
+  local toggle_hints = function(_)
+    GdevLsp.toggle_inlay_hints(0)
+  end
   vim.api.nvim_create_user_command('GdevLspToggleHints', toggle_hints, {
     desc = 'Toggle Godot inlay hints in the current buffer',
   })
@@ -214,9 +224,15 @@ H.on_attach = function(client, buf_id)
   -- removed there; clearing the server flag is what keeps requests away.
   client.server_capabilities.typeDefinitionProvider = nil
 
-  if H.is_disabled() then return end
-  if not H.get_config(nil, buf_id).inlay_hints then return end
-  if not client:supports_method('textDocument/inlayHint') then return end
+  if H.is_disabled() then
+    return
+  end
+  if not H.get_config(nil, buf_id).inlay_hints then
+    return
+  end
+  if not client:supports_method('textDocument/inlayHint') then
+    return
+  end
 
   vim.lsp.inlay_hint.enable(true, { bufnr = buf_id })
 end
@@ -225,24 +241,32 @@ H.handle_show_message = function(err, result, ctx, config)
   local message = type(result) == 'table' and result.message or nil
   if type(message) == 'string' then
     for _, ignored in ipairs(H.ignored_server_messages) do
-      if message:find(ignored, 1, true) ~= nil then return end
+      if message:find(ignored, 1, true) ~= nil then
+        return
+      end
     end
   end
 
   -- Resolved per call so a user replacing the default handler still wins
   local fallback = vim.lsp.handlers['window/showMessage']
-  if type(fallback) == 'function' then return fallback(err, result, ctx, config) end
+  if type(fallback) == 'function' then
+    return fallback(err, result, ctx, config)
+  end
 end
 
 -- Predicates -----------------------------------------------------------------
 H.is_godot_buffer = function(buf_id)
-  if not vim.api.nvim_buf_is_loaded(buf_id) then return false end
+  if not vim.api.nvim_buf_is_loaded(buf_id) then
+    return false
+  end
   return vim.tbl_contains(H.godot_filetypes, vim.bo[buf_id].filetype)
 end
 
 H.supports_inlay_hints = function(buf_id)
   for _, client in ipairs(vim.lsp.get_clients({ bufnr = buf_id })) do
-    if client:supports_method('textDocument/inlayHint') then return true end
+    if client:supports_method('textDocument/inlayHint') then
+      return true
+    end
   end
   return false
 end

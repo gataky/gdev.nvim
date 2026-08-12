@@ -196,14 +196,18 @@ GdevScenetree.config = {
 ---
 ---@return boolean Whether the pane now shows a scene, or a picker was opened.
 GdevScenetree.open = function(scene, opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   H.check_type('scene', scene, 'string', true)
   local config = H.get_config(opts)
 
   if scene ~= nil and scene ~= '' then
     local root = H.find_root()
-    if root == nil then return H.report_no_project() end
+    if root == nil then
+      return H.report_no_project()
+    end
 
     local res = Project.to_res(root, scene)
     if res == nil then
@@ -220,7 +224,9 @@ GdevScenetree.open = function(scene, opts)
   end
 
   local root = H.find_root()
-  if root == nil then return H.report_no_project() end
+  if root == nil then
+    return H.report_no_project()
+  end
 
   local path = H.buffer_path()
   if path == nil then
@@ -230,10 +236,15 @@ GdevScenetree.open = function(scene, opts)
 
   -- The root was found by walking up from this very path, so it always
   -- contains it and `to_res()` cannot fail here
-  if Project.is_scene(path) then return H.show(Project.to_res(root, path), root, config) end
+  if Project.is_scene(path) then
+    return H.show(Project.to_res(root, path), root, config)
+  end
 
   if not Project.is_script(path, config.script_extensions) then
-    H.notify(('%s is neither a scene nor a Godot script'):format(vim.fn.fnamemodify(path, ':t')), 'ERROR')
+    H.notify(
+      ('%s is neither a scene nor a Godot script'):format(vim.fn.fnamemodify(path, ':t')),
+      'ERROR'
+    )
     return false
   end
 
@@ -243,13 +254,17 @@ GdevScenetree.open = function(scene, opts)
     H.notify(('no scene in %s uses %s'):format(root, res), 'ERROR')
     return false
   end
-  if #scenes == 1 then return H.show(scenes[1], root, config) end
+  if #scenes == 1 then
+    return H.show(scenes[1], root, config)
+  end
 
   -- Shown from the choice rather than through `GdevScenetree.open()` again:
   -- the offered scenes were resolved against `root`, and re-resolving on the
   -- way out would answer for whatever buffer the user is in when it closes
   vim.ui.select(scenes, { prompt = ('Scenes using %s'):format(res) }, function(choice)
-    if choice == nil then return end
+    if choice == nil then
+      return
+    end
     H.show(choice, root, config)
   end)
   return true
@@ -266,8 +281,12 @@ end
 ---
 ---@return boolean Whether the pane now shows a scene.
 GdevScenetree.refresh = function(opts)
-  if H.is_disabled() then return false end
-  if H.pane.scene == nil then return GdevScenetree.open(nil, opts) end
+  if H.is_disabled() then
+    return false
+  end
+  if H.pane.scene == nil then
+    return GdevScenetree.open(nil, opts)
+  end
 
   return H.show(H.pane.scene, H.pane.root, H.get_config(opts))
 end
@@ -278,14 +297,20 @@ end
 ---
 ---@return boolean Whether a window was closed.
 GdevScenetree.close = function()
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local win_id = H.pane.win_id
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return false end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return false
+  end
 
   -- Closing the last window is refused by Neovim rather than quitting it
   local ok = pcall(vim.api.nvim_win_close, win_id, false)
-  if ok then H.pane.win_id = nil end
+  if ok then
+    H.pane.win_id = nil
+  end
   return ok
 end
 
@@ -296,10 +321,14 @@ end
 ---
 ---@return boolean Whether the jump happened.
 GdevScenetree.jump_to_node = function()
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local node = H.node_at_cursor()
-  if node == nil then return false end
+  if node == nil then
+    return false
+  end
 
   vim.api.nvim_win_set_cursor(H.edit(H.pane.path), { node.line, 0 })
   return true
@@ -312,10 +341,14 @@ end
 ---
 ---@return boolean Whether something was yanked.
 GdevScenetree.yank_node_path = function()
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local node = H.node_at_cursor()
-  if node == nil then return false end
+  if node == nil then
+    return false
+  end
 
   vim.fn.setreg('"', node.path)
   H.notify(('yanked %s'):format(node.path))
@@ -329,10 +362,14 @@ end
 ---
 ---@return boolean Whether a file was opened.
 GdevScenetree.open_script = function()
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local node = H.node_at_cursor()
-  if node == nil then return false end
+  if node == nil then
+    return false
+  end
 
   local res = node.script or node.instance
   if res == nil then
@@ -370,7 +407,9 @@ GdevScenetree.get_nodes = function(scene)
   H.check_type('scene', scene, 'string', true)
 
   local path = (scene == nil or scene == '') and H.pane.path or H.scene_path(scene)
-  if path == nil or vim.fn.filereadable(path) ~= 1 then return {} end
+  if path == nil or vim.fn.filereadable(path) ~= 1 then
+    return {}
+  end
 
   return H.parse(vim.fn.readfile(path))
 end
@@ -480,11 +519,22 @@ for glyph, types in pairs({
   ['\u{f031}'] = { 'Label', 'Label3D', 'RichTextLabel' }, -- font
   -- Cameras, lights, sound
   ['\u{f030}'] = { 'Camera2D', 'Camera3D' }, -- camera
-  ['\u{f0eb}'] = { 'DirectionalLight2D', 'DirectionalLight3D', 'PointLight2D', 'OmniLight3D', 'SpotLight3D' }, -- bulb
+  ['\u{f0eb}'] = {
+    'DirectionalLight2D',
+    'DirectionalLight3D',
+    'PointLight2D',
+    'OmniLight3D',
+    'SpotLight3D',
+  }, -- bulb
   ['\u{f001}'] = { 'AudioStreamPlayer', 'AudioStreamPlayer2D', 'AudioStreamPlayer3D' }, -- music
   -- Physics
   ['\u{f192}'] = { 'Area2D', 'Area3D' }, -- dot-circle-o
-  ['\u{f05b}'] = { 'CollisionShape2D', 'CollisionShape3D', 'CollisionPolygon2D', 'CollisionPolygon3D' }, -- crosshairs
+  ['\u{f05b}'] = {
+    'CollisionShape2D',
+    'CollisionShape3D',
+    'CollisionPolygon2D',
+    'CollisionPolygon3D',
+  }, -- crosshairs
   ['\u{f007}'] = { 'CharacterBody2D', 'CharacterBody3D' }, -- user
   ['\u{f0e7}'] = { 'RigidBody2D', 'RigidBody3D' }, -- bolt
   ['\u{f0c8}'] = { 'StaticBody2D', 'StaticBody3D', 'Panel' }, -- square
@@ -573,7 +623,8 @@ H.categories = {
   ResourcePreloader = 'White',
 }
 
-H.control_suffixes = { 'Container', 'Button', 'Label', 'Bar', 'Edit', 'Rect', 'Slider', 'Separator', 'Picker' }
+H.control_suffixes =
+  { 'Container', 'Button', 'Label', 'Bar', 'Edit', 'Rect', 'Slider', 'Separator', 'Picker' }
 
 -- Helper functionality =======================================================
 -- Settings -------------------------------------------------------------------
@@ -605,18 +656,30 @@ H.setup_config = function(config)
 end
 
 H.check_one_of = function(field, value, allowed)
-  if vim.tbl_contains(allowed, value) then return end
+  if vim.tbl_contains(allowed, value) then
+    return
+  end
   local quoted = vim.tbl_map(vim.inspect, allowed)
-  H.error(('`%s` should be one of %s, not %s'):format(field, table.concat(quoted, ', '), vim.inspect(value)))
+  H.error(
+    ('`%s` should be one of %s, not %s'):format(
+      field,
+      table.concat(quoted, ', '),
+      vim.inspect(value)
+    )
+  )
 end
 
 H.check_fraction = function(field, value)
-  if type(value) == 'number' and 0 < value and value <= 1 then return end
+  if type(value) == 'number' and 0 < value and value <= 1 then
+    return
+  end
   H.error(('`%s` should be a number between 0 and 1, not %s'):format(field, vim.inspect(value)))
 end
 
 H.check_icons = function(field, value)
-  if value == false or type(value) == 'table' or vim.tbl_contains(H.icon_styles, value) then return end
+  if value == false or type(value) == 'table' or vim.tbl_contains(H.icon_styles, value) then
+    return
+  end
   local styles = table.concat(vim.tbl_map(vim.inspect, H.icon_styles), ' or ')
   H.error(('`%s` should be `false`, a table, %s, not %s'):format(field, styles, vim.inspect(value)))
 end
@@ -624,24 +687,35 @@ end
 -- |nvim_set_hl()| takes an attribute table; a string is the common case of
 -- linking to an existing group, spelled without the `link =` ceremony
 H.check_hl = function(field, value)
-  if type(value) == 'string' or type(value) == 'table' then return end
+  if type(value) == 'string' or type(value) == 'table' then
+    return
+  end
   H.error(('`%s` should be a string or table, not %s'):format(field, type(value)))
 end
 
-H.apply_config = function(config) GdevScenetree.config = config end
+H.apply_config = function(config)
+  GdevScenetree.config = config
+end
 
 H.create_autocommands = function()
   local gr = vim.api.nvim_create_augroup('GdevScenetree', {})
-  vim.api.nvim_create_autocmd('ColorScheme', { group = gr, callback = H.create_default_hl, desc = 'Ensure colors' })
+  vim.api.nvim_create_autocmd(
+    'ColorScheme',
+    { group = gr, callback = H.create_default_hl, desc = 'Ensure colors' }
+  )
 end
 
 H.create_user_commands = function()
-  vim.api.nvim_create_user_command('GdevScenetree', function(data) GdevScenetree.open(data.args) end, {
+  vim.api.nvim_create_user_command('GdevScenetree', function(data)
+    GdevScenetree.open(data.args)
+  end, {
     nargs = '?',
     complete = 'file',
     desc = 'Show a Godot scene as a tree',
   })
-  vim.api.nvim_create_user_command('GdevScenetreeRefresh', function() GdevScenetree.refresh() end, {
+  vim.api.nvim_create_user_command('GdevScenetreeRefresh', function()
+    GdevScenetree.refresh()
+  end, {
     desc = 'Reparse the scene the tree pane shows',
   })
 end
@@ -686,14 +760,19 @@ H.parse = function(lines)
 
       if kind == 'ext_resource' then
         local attrs = H.attributes(attributes)
-        if attrs.id ~= nil and attrs.path ~= nil then resources[attrs.id] = attrs end
+        if attrs.id ~= nil and attrs.path ~= nil then
+          resources[attrs.id] = attrs
+        end
       elseif kind == 'node' then
-        node = H.node(H.attributes(attributes), resources[H.resource_id(attributes, 'instance')], index)
+        node =
+          H.node(H.attributes(attributes), resources[H.resource_id(attributes, 'instance')], index)
         table.insert(nodes, node)
       end
     elseif node ~= nil then
       local resource = resources[H.resource_id(line, 'script')]
-      if resource ~= nil then node.script = resource.path end
+      if resource ~= nil then
+        node.script = resource.path
+      end
     end
   end
 
@@ -783,36 +862,57 @@ H.render = function(nodes, config)
   for _, node in ipairs(nodes) do
     local indent = ('  '):rep(node.depth)
     local icon = H.icon(node, icons)
-    local text = indent .. (icon ~= nil and (icon .. ' ') or '') .. (node.name ~= '' and node.name or '<unnamed>')
+    local text = indent
+      .. (icon ~= nil and (icon .. ' ') or '')
+      .. (node.name ~= '' and node.name or '<unnamed>')
 
     -- What a node instances says more than `PackedScene` does
     local label = node.instance or node.type
-    if label ~= nil then text = text .. (' [%s]'):format(label) end
-    if node.script ~= nil then text = text .. (icons ~= nil and icons.script_suffix or ' *') end
+    if label ~= nil then
+      text = text .. (' [%s]'):format(label)
+    end
+    if node.script ~= nil then
+      text = text .. (icons ~= nil and icons.script_suffix or ' *')
+    end
 
     table.insert(lines, text)
     if icon ~= nil then
       local group = 'GdevScenetreeIcon' .. (H.category(node.type) or '')
-      table.insert(spans, { line = #lines, col = #indent, end_col = #indent + #icon, group = group })
+      table.insert(
+        spans,
+        { line = #lines, col = #indent, end_col = #indent + #icon, group = group }
+      )
     end
   end
 
-  if #lines == 0 then table.insert(lines, 'no [node] sections in this scene') end
+  if #lines == 0 then
+    table.insert(lines, 'no [node] sections in this scene')
+  end
   return lines, spans
 end
 
 H.resolve_icons = function(icons)
-  if icons == false then return nil end
-  if type(icons) ~= 'table' then return H.icons[icons] end
+  if icons == false then
+    return nil
+  end
+  if type(icons) ~= 'table' then
+    return H.icons[icons]
+  end
   return vim.tbl_deep_extend('force', vim.deepcopy(H.icons.nerdfont), icons)
 end
 
 H.icon = function(node, icons)
-  if icons == nil then return nil end
-  if node.type == nil then return icons.generic end
+  if icons == nil then
+    return nil
+  end
+  if node.type == nil then
+    return icons.generic
+  end
 
   local icon = icons.types[node.type]
-  if icon ~= nil then return icon end
+  if icon ~= nil then
+    return icon
+  end
 
   for _, family in ipairs(H.icon_families) do
     if vim.endswith(node.type, family.suffix) and icons.types[family.type] ~= nil then
@@ -826,20 +926,38 @@ end
 -- Category name whose highlight group colors this type's icon, or `nil` when
 -- the type belongs to none and the generic group is the answer.
 H.category = function(node_type)
-  if node_type == nil then return 'Grey' end
-  if H.categories[node_type] ~= nil then return H.categories[node_type] end
+  if node_type == nil then
+    return 'Grey'
+  end
+  if H.categories[node_type] ~= nil then
+    return H.categories[node_type]
+  end
 
-  if vim.endswith(node_type, 'EditorPlugin') then return 'Yellow' end
-  if vim.endswith(node_type, '3D') then return 'Red' end
-  if vim.endswith(node_type, '2D') then return 'Blue' end
+  if vim.endswith(node_type, 'EditorPlugin') then
+    return 'Yellow'
+  end
+  if vim.endswith(node_type, '3D') then
+    return 'Red'
+  end
+  if vim.endswith(node_type, '2D') then
+    return 'Blue'
+  end
   for _, suffix in ipairs(H.control_suffixes) do
-    if vim.endswith(node_type, suffix) then return 'Green' end
+    if vim.endswith(node_type, suffix) then
+      return 'Green'
+    end
   end
 end
 
 H.highlight = function(buf_id, spans)
   vim.api.nvim_buf_clear_namespace(buf_id, H.ns_id, 0, -1)
-  vim.api.nvim_buf_set_extmark(buf_id, H.ns_id, 0, 0, { end_row = 1, hl_group = 'GdevScenetreeHeader' })
+  vim.api.nvim_buf_set_extmark(
+    buf_id,
+    H.ns_id,
+    0,
+    0,
+    { end_row = 1, hl_group = 'GdevScenetreeHeader' }
+  )
 
   for _, span in ipairs(spans) do
     local opts = { end_col = span.end_col, hl_group = span.group }
@@ -858,7 +976,9 @@ end
 -- one puts the cursor on line 1.
 H.cursor_line = function(buf_id)
   local win_id = H.pane.win_id
-  local showing = win_id ~= nil and vim.api.nvim_win_is_valid(win_id) and vim.api.nvim_win_get_buf(win_id) == buf_id
+  local showing = win_id ~= nil
+    and vim.api.nvim_win_is_valid(win_id)
+    and vim.api.nvim_win_get_buf(win_id) == buf_id
   return showing and vim.api.nvim_win_get_cursor(win_id)[1] or 2
 end
 
@@ -901,8 +1021,15 @@ H.create_mappings = function(buf_id, config)
   -- `H.map()` is what makes an empty `lhs` mean "no mapping"; returning early
   -- only keeps the empty one out of the list of mappings to undo next time
   local map = function(lhs, fn, desc)
-    if lhs == '' then return end
-    H.map('n', lhs, ('<Cmd>lua GdevScenetree.%s()<CR>'):format(fn), { buffer = buf_id, desc = desc })
+    if lhs == '' then
+      return
+    end
+    H.map(
+      'n',
+      lhs,
+      ('<Cmd>lua GdevScenetree.%s()<CR>'):format(fn),
+      { buffer = buf_id, desc = desc }
+    )
     table.insert(H.pane.mappings, lhs)
   end
 
@@ -925,7 +1052,8 @@ H.pane_open = function(buf_id, config)
   H.pane.source_win_id = vim.api.nvim_get_current_win()
 
   local width = math.max(math.floor(vim.o.columns * config.buffer.size), H.min_width)
-  win_id = vim.api.nvim_open_win(buf_id, true, { split = config.buffer.position, win = -1, width = width })
+  win_id =
+    vim.api.nvim_open_win(buf_id, true, { split = config.buffer.position, win = -1, width = width })
   H.pane.win_id = win_id
   H.window_options(win_id)
 
@@ -937,7 +1065,8 @@ end
 -- because every mapping acts on it.
 H.window_options = function(win_id)
   local wo = vim.wo[win_id]
-  wo.wrap, wo.number, wo.relativenumber, wo.signcolumn, wo.foldcolumn = false, false, false, 'no', '0'
+  wo.wrap, wo.number, wo.relativenumber, wo.signcolumn, wo.foldcolumn =
+    false, false, false, 'no', '0'
   wo.cursorline, wo.winfixwidth, wo.list, wo.spell = true, true, false, false
 end
 
@@ -952,7 +1081,9 @@ H.node_at_cursor = function()
   end
 
   local node = H.pane.nodes[vim.api.nvim_win_get_cursor(0)[1]]
-  if node == nil then H.notify('the cursor is not on a node', 'WARN') end
+  if node == nil then
+    H.notify('the cursor is not on a node', 'WARN')
+  end
   return node
 end
 
@@ -965,7 +1096,9 @@ H.source_window = function()
 
   for _, win_id in ipairs(candidates) do
     local usable = win_id ~= H.pane.win_id and vim.api.nvim_win_is_valid(win_id)
-    if usable and vim.api.nvim_win_get_config(win_id).relative == '' then return win_id end
+    if usable and vim.api.nvim_win_get_config(win_id).relative == '' then
+      return win_id
+    end
   end
 end
 
@@ -993,7 +1126,9 @@ end
 -- a name too, and searching upward from `gdev://scene-tree` finds nothing --
 -- worse than falling back to the working directory.
 H.buffer_path = function()
-  if vim.bo.buftype ~= '' then return nil end
+  if vim.bo.buftype ~= '' then
+    return nil
+  end
 
   local path = vim.api.nvim_buf_get_name(0)
   return path ~= '' and path or nil
@@ -1003,7 +1138,9 @@ end
 -- of its own -- but it remembers the one it was opened for, which beats the
 -- working directory the `nil` path would otherwise fall back to.
 H.find_root = function()
-  if H.pane.root ~= nil and vim.api.nvim_get_current_buf() == H.pane.buf_id then return H.pane.root end
+  if H.pane.root ~= nil and vim.api.nvim_get_current_buf() == H.pane.buf_id then
+    return H.pane.root
+  end
   return Project.find_root(H.buffer_path())
 end
 
@@ -1012,7 +1149,9 @@ end
 -- inside it. The file does not have to exist.
 H.scene_path = function(scene)
   local root = H.find_root()
-  if root == nil then return nil end
+  if root == nil then
+    return nil
+  end
 
   local res = Project.to_res(root, scene)
   return res ~= nil and Project.to_path(root, res) or nil
@@ -1025,7 +1164,9 @@ end
 
 H.find_buf = function(name)
   for _, buf_id in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_get_name(buf_id) == name then return buf_id end
+    if vim.api.nvim_buf_get_name(buf_id) == name then
+      return buf_id
+    end
   end
 end
 

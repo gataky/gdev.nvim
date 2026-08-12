@@ -31,7 +31,9 @@ local T = new_set({
 T['error()'] = new_set()
 
 T['error()']['prefixes with the module name'] = function()
-  expect.error(function() child.lua('H.error("something broke")') end, vim.pesc('(gdev.demo) something broke'))
+  expect.error(function()
+    child.lua('H.error("something broke")')
+  end, vim.pesc('(gdev.demo) something broke'))
 end
 
 T['error()']['raises without a stack trace'] = function()
@@ -50,7 +52,10 @@ T['notify()']['prefixes and defaults to INFO'] = function()
     H.notify('not good', 'WARN')
   ]])
 
-  eq(child.lua_get('_G.notified[1]'), { msg = '(gdev.demo) all good', level = child.lua_get('vim.log.levels.INFO') })
+  eq(
+    child.lua_get('_G.notified[1]'),
+    { msg = '(gdev.demo) all good', level = child.lua_get('vim.log.levels.INFO') }
+  )
   eq(child.lua_get('_G.notified[2].level'), child.lua_get('vim.log.levels.WARN'))
 end
 
@@ -63,15 +68,16 @@ T['check_type()']['accepts matching types'] = function()
 end
 
 T['check_type()']['names the field and the expected type'] = function()
-  expect.error(
-    function() child.lua('H.check_type("mappings.action", 1, "string")') end,
-    vim.pesc('`mappings.action` should be string, not number')
-  )
+  expect.error(function()
+    child.lua('H.check_type("mappings.action", 1, "string")')
+  end, vim.pesc('`mappings.action` should be string, not number'))
 end
 
 T['check_type()']['respects `allow_nil`'] = function()
   child.lua('H.check_type("hook", nil, "callable", true)')
-  expect.error(function() child.lua('H.check_type("hook", nil, "callable")') end, 'hook.*callable')
+  expect.error(function()
+    child.lua('H.check_type("hook", nil, "callable")')
+  end, 'hook.*callable')
 end
 
 T['validate_buf_id()'] = new_set()
@@ -91,7 +97,9 @@ T['validate_buf_id()']['rejects anything else'] = new_set({
   parametrize = { { '"a"' }, { '{}' }, { '999999' } },
 }, {
   test = function(argument)
-    expect.error(function() child.lua('H.validate_buf_id(' .. argument .. ')') end, '`buf_id`.*valid buffer id')
+    expect.error(function()
+      child.lua('H.validate_buf_id(' .. argument .. ')')
+    end, '`buf_id`.*valid buffer id')
   end,
 })
 

@@ -10,9 +10,13 @@ if #vim.api.nvim_list_uis() == 0 then
   -- would likewise leak into buffer options and reference screenshots.
   local user_dirs = { vim.fn.stdpath('config'), vim.fn.stdpath('data') .. '/site' }
   local is_user_dir = function(dir)
-    return vim.iter(user_dirs):any(function(user_dir) return vim.startswith(dir, user_dir) end)
+    return vim.iter(user_dirs):any(function(user_dir)
+      return vim.startswith(dir, user_dir)
+    end)
   end
-  vim.opt.rtp = vim.tbl_filter(function(dir) return not is_user_dir(dir) end, vim.opt.rtp:get())
+  vim.opt.rtp = vim.tbl_filter(function(dir)
+    return not is_user_dir(dir)
+  end, vim.opt.rtp:get())
 
   -- 'packpath' is deliberately left alone. Emptying it also hides Neovim's own
   -- bundled packages, and the resulting `E919` for netrw stops the child exiting

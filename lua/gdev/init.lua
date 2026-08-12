@@ -98,7 +98,9 @@ Gdev.setup = function(config)
 
   config = H.setup_config(config)
 
-  if config.csharp then H.notify('`csharp` is reserved for future C# support and does nothing yet', 'WARN') end
+  if config.csharp then
+    H.notify('`csharp` is reserved for future C# support and does nothing yet', 'WARN')
+  end
 
   local done = {}
   for _, name in ipairs(H.modules) do
@@ -126,12 +128,18 @@ H.modules = { 'lsp', 'treesitter', 'dap', 'format', 'server', 'run', 'scenetree'
 H.reserved = { 'csharp' }
 
 -- Helper functionality =======================================================
-H.error = function(msg) error('(gdev) ' .. msg, 0) end
+H.error = function(msg)
+  error('(gdev) ' .. msg, 0)
+end
 
-H.notify = function(msg, level) vim.notify('(gdev) ' .. msg, vim.log.levels[level or 'INFO']) end
+H.notify = function(msg, level)
+  vim.notify('(gdev) ' .. msg, vim.log.levels[level or 'INFO'])
+end
 
 H.check_type = function(field, val, ref, allow_nil)
-  if type(val) == ref or (allow_nil and val == nil) then return end
+  if type(val) == ref or (allow_nil and val == nil) then
+    return
+  end
   H.error(string.format('`%s` should be %s, not %s', field, ref, type(val)))
 end
 
@@ -145,7 +153,9 @@ H.setup_config = function(config)
 
   for _, key in ipairs(keys) do
     if not H.is_known(key) then
-      H.error(('unknown module `%s`; expected one of %s'):format(key, table.concat(H.known(), ', ')))
+      H.error(
+        ('unknown module `%s`; expected one of %s'):format(key, table.concat(H.known(), ', '))
+      )
     end
 
     local value = config[key]
@@ -157,7 +167,9 @@ H.setup_config = function(config)
   return config
 end
 
-H.is_known = function(key) return vim.tbl_contains(H.modules, key) or vim.tbl_contains(H.reserved, key) end
+H.is_known = function(key)
+  return vim.tbl_contains(H.modules, key) or vim.tbl_contains(H.reserved, key)
+end
 
 H.known = function()
   local keys = vim.list_extend(vim.list_extend({}, H.modules), H.reserved)

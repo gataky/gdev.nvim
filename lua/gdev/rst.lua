@@ -23,7 +23,9 @@ local H = {}
 -- Convert a whole document. Returns `''` for anything that is not a string, so
 -- a failed fetch needs no special case at the call site.
 Rst.to_markdown = function(text)
-  if type(text) ~= 'string' then return '' end
+  if type(text) ~= 'string' then
+    return ''
+  end
 
   local lines = vim.split((text:gsub('\r\n', '\n')), '\n', { plain = true })
   return table.concat(H.tidy(H.convert(lines)), '\n')
@@ -34,7 +36,9 @@ end
 -- and table cells all need exactly this, and most of the interesting cases are
 -- here rather than in the block structure.
 Rst.inline = function(text)
-  if type(text) ~= 'string' or text == '' then return '' end
+  if type(text) ~= 'string' or text == '' then
+    return ''
+  end
 
   text = Rst.substitute(text)
 
@@ -71,7 +75,9 @@ end
 -- preamble. Applied before a table row is split, because `|const|` otherwise
 -- takes the cell delimiter with it.
 Rst.substitute = function(text)
-  return (text:gsub('|([%a_]+)|', function(name) return H.substitutions[name] end))
+  return (text:gsub('|([%a_]+)|', function(name)
+    return H.substitutions[name]
+  end))
 end
 
 -- Helper data ================================================================
@@ -91,7 +97,8 @@ H.substitutions = {
 }
 
 -- Roles whose content is code-like and reads best as a Markdown code span
-H.literal_roles = { 'code', 'command', 'file', 'guilabel', 'kbd', 'literal', 'math', 'menuselection' }
+H.literal_roles =
+  { 'code', 'command', 'file', 'guilabel', 'kbd', 'literal', 'math', 'menuselection' }
 
 -- Directives holding source code, mapped to nothing more than a fence
 H.code_directives = { code = true, ['code-block'] = true, ['code-tab'] = true, codeblock = true }
@@ -149,7 +156,9 @@ H.block = function(out, lines, i)
     return i + 1
   end
 
-  if H.directive_name(line) ~= nil then return H.directive(out, lines, i) end
+  if H.directive_name(line) ~= nil then
+    return H.directive(out, lines, i)
+  end
 
   -- Comments, anchors and substitution definitions: everything else spelled
   -- `.. `, together with whatever is indented under it
@@ -158,13 +167,19 @@ H.block = function(out, lines, i)
     return next_i
   end
 
-  if H.is_field(line) then return i + 1 end
+  if H.is_field(line) then
+    return i + 1
+  end
 
   -- A table starts at a rule, never at a row: a lone `|...|` line is far more
   -- likely to be a signature carrying substitutions than a malformed table
-  if H.is_table_rule(line) then return H.grid_table(out, lines, i) end
+  if H.is_table_rule(line) then
+    return H.grid_table(out, lines, i)
+  end
 
-  if H.list_item(line) ~= nil then return H.list(out, lines, i) end
+  if H.list_item(line) ~= nil then
+    return H.list(out, lines, i)
+  end
 
   return H.paragraph(out, lines, i)
 end
@@ -212,7 +227,9 @@ end
 H.grid_table = function(out, lines, i)
   local rows, pending = {}, nil
   local flush = function()
-    if pending ~= nil then rows[#rows + 1] = pending end
+    if pending ~= nil then
+      rows[#rows + 1] = pending
+    end
     pending = nil
   end
 
@@ -257,7 +274,9 @@ end
 -- first row is promoted: it still reads as data, which is the best of the
 -- available lies.
 H.format_table = function(rows)
-  if #rows == 0 then return {} end
+  if #rows == 0 then
+    return {}
+  end
 
   local columns = 0
   for _, row in ipairs(rows) do
@@ -288,7 +307,9 @@ end
 H.list = function(out, lines, i)
   while i <= #lines do
     local marker, rest = H.list_item(lines[i])
-    if marker == nil then break end
+    if marker == nil then
+      break
+    end
 
     local text, next_i = H.continuation(lines, i + 1, rest)
     out[#out + 1] = ('%s %s'):format(marker, Rst.inline(text))
@@ -303,7 +324,9 @@ H.paragraph = function(out, lines, i)
   local parts, start = {}, i
 
   while i <= #lines do
-    if i > start and H.starts_block(lines, i) then break end
+    if i > start and H.starts_block(lines, i) then
+      break
+    end
     parts[#parts + 1] = vim.trim(lines[i])
     i = i + 1
   end
@@ -325,9 +348,13 @@ H.indented_block = function(lines, from, base)
     i = i + 1
   end
 
-  if lines[i] == nil then return {}, from end
+  if lines[i] == nil then
+    return {}, from
+  end
   local indent = H.indent_of(lines[i])
-  if indent <= base then return {}, from end
+  if indent <= base then
+    return {}, from
+  end
 
   local body, last = {}, 0
   while i <= #lines do
@@ -367,7 +394,9 @@ H.continuation = function(lines, from, text)
   local i = from
   while i <= #lines do
     local line = lines[i]
-    if H.is_blank(line) or H.indent_of(line) == 0 or H.starts_block(lines, i) then break end
+    if H.is_blank(line) or H.indent_of(line) == 0 or H.starts_block(lines, i) then
+      break
+    end
     text = text .. ' ' .. vim.trim(line)
     i = i + 1
   end
@@ -380,9 +409,15 @@ H.tidy = function(lines)
   local out, fenced = {}, false
 
   for _, line in ipairs(lines) do
-    if not fenced then line = (line:gsub('%s+$', '')) end
-    if line:match('^```') ~= nil then fenced = not fenced end
-    if fenced or line ~= '' or (#out > 0 and out[#out] ~= '') then out[#out + 1] = line end
+    if not fenced then
+      line = (line:gsub('%s+$', ''))
+    end
+    if line:match('^```') ~= nil then
+      fenced = not fenced
+    end
+    if fenced or line ~= '' or (#out > 0 and out[#out] ~= '') then
+      out[#out + 1] = line
+    end
   end
 
   return H.trim_blanks(out)
@@ -399,9 +434,13 @@ H.trim_blanks = function(lines)
 end
 
 -- Predicates -----------------------------------------------------------------
-H.is_blank = function(line) return line == nil or line:match('^%s*$') ~= nil end
+H.is_blank = function(line)
+  return line == nil or line:match('^%s*$') ~= nil
+end
 
-H.indent_of = function(line) return #(line:match('^%s*')) end
+H.indent_of = function(line)
+  return #(line:match('^%s*'))
+end
 
 -- A title is underlined by a run of one punctuation character at least as long
 -- as the title itself; anything shorter is Sphinx's own error case.
@@ -410,46 +449,67 @@ H.indent_of = function(line) return #(line:match('^%s*')) end
 -- obvious pattern and matches nothing at all: Lua back-references cannot carry
 -- a quantifier, so the `+` there is a literal plus sign.
 H.is_underline = function(under, title)
-  if under == nil or title == nil or vim.trim(title) == '' then return false end
+  if under == nil or title == nil or vim.trim(title) == '' then
+    return false
+  end
 
   local marker = under:sub(1, 1)
-  if H.headings[marker] == nil then return false end
+  if H.headings[marker] == nil then
+    return false
+  end
 
   local run = vim.trim(under)
-  if #run < 2 or run:match('^' .. vim.pesc(marker) .. '+$') == nil then return false end
+  if #run < 2 or run:match('^' .. vim.pesc(marker) .. '+$') == nil then
+    return false
+  end
 
   return #run >= #vim.trim(title)
 end
 
 -- A rule on its own is a section separator, not an underline: the class
 -- reference puts one between the summary tables and the descriptions.
-H.is_transition = function(line) return line:match('^%-%-%-+%s*$') ~= nil end
+H.is_transition = function(line)
+  return line:match('^%-%-%-+%s*$') ~= nil
+end
 
 H.directive_name = function(line)
   local name, argument = line:match('^%s*%.%.%s+([%w_%+%-]+)::%s*(.*)$')
-  if name == nil then return nil end
+  if name == nil then
+    return nil
+  end
   return name:lower(), vim.trim(argument)
 end
 
 -- `:github_url: hide` is a field, `:ref:`Node<class_Node>`` is a role: the
 -- backtick is what tells them apart.
 H.is_field = function(line)
-  if line == nil then return false end
-  return line:match('^%s*:[%w_%+%-%.]+:%s*$') ~= nil or line:match('^%s*:[%w_%+%-%.]+:%s+[^`]') ~= nil
+  if line == nil then
+    return false
+  end
+  return line:match('^%s*:[%w_%+%-%.]+:%s*$') ~= nil
+    or line:match('^%s*:[%w_%+%-%.]+:%s+[^`]') ~= nil
 end
 
-H.is_table_rule = function(line) return line ~= nil and line:match('^%s*%+[%-=+]+%+%s*$') ~= nil end
+H.is_table_rule = function(line)
+  return line ~= nil and line:match('^%s*%+[%-=+]+%+%s*$') ~= nil
+end
 
 -- Both ends, not just the leading bar: half the method signatures in the class
 -- reference start with a `|void|` or `|const|` substitution.
-H.is_table_row = function(line) return line ~= nil and line:match('^%s*|.*|%s*$') ~= nil end
+H.is_table_row = function(line)
+  return line ~= nil and line:match('^%s*|.*|%s*$') ~= nil
+end
 
 H.list_item = function(line)
   local bullet, rest = line:match('^%s*([%-%*%+])%s+(.*)$')
-  if bullet ~= nil then return '-', rest end
+  if bullet ~= nil then
+    return '-', rest
+  end
 
   local number, numbered = line:match('^%s*(%d+[%.%)])%s+(.*)$')
-  if number ~= nil then return number, numbered end
+  if number ~= nil then
+    return number, numbered
+  end
 end
 
 H.starts_block = function(lines, i)

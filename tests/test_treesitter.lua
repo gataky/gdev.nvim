@@ -5,8 +5,12 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('treesitter', config) end
-local unload_module = function() child.gdev_unload('treesitter') end
+local load_module = function(config)
+  child.gdev_load('treesitter', config)
+end
+local unload_module = function()
+  child.gdev_unload('treesitter')
+end
 
 -- Stubs installed in the child.
 --
@@ -133,7 +137,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -273,7 +279,9 @@ T['attach()']['respects `vim.b.gdevtreesitter_config`'] = function()
 end
 
 T['attach()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevTreesitter.attach("a")') end, '`buf_id`.*valid buffer id')
+  expect.error(function()
+    child.lua('GdevTreesitter.attach("a")')
+  end, '`buf_id`.*valid buffer id')
 end
 
 T['attach()']['respects `vim.{g,b}.gdevtreesitter_disable`'] = new_set({

@@ -32,24 +32,38 @@ Util.new = function(name, mod)
   local var = 'gdev' .. name
 
   -- Level 0: user-facing errors read better without a Lua stack trace attached
-  H.error = function(msg) error(prefix .. msg, 0) end
+  H.error = function(msg)
+    error(prefix .. msg, 0)
+  end
 
-  H.notify = function(msg, level) vim.notify(prefix .. msg, vim.log.levels[level or 'INFO']) end
+  H.notify = function(msg, level)
+    vim.notify(prefix .. msg, vim.log.levels[level or 'INFO'])
+  end
 
   H.check_type = function(field, val, ref, allow_nil)
-    if type(val) == ref or (ref == 'callable' and vim.is_callable(val)) or (allow_nil and val == nil) then return end
+    if
+      type(val) == ref
+      or (ref == 'callable' and vim.is_callable(val))
+      or (allow_nil and val == nil)
+    then
+      return
+    end
     H.error(string.format('`%s` should be %s, not %s', field, ref, type(val)))
   end
 
   H.validate_buf_id = function(buf_id)
-    if buf_id == nil or buf_id == 0 then return vim.api.nvim_get_current_buf() end
+    if buf_id == nil or buf_id == 0 then
+      return vim.api.nvim_get_current_buf()
+    end
     if not (type(buf_id) == 'number' and vim.api.nvim_buf_is_valid(buf_id)) then
       H.error('`buf_id` should be `nil` or valid buffer id, not ' .. vim.inspect(buf_id))
     end
     return buf_id
   end
 
-  H.is_disabled = function() return vim.g[var .. '_disable'] == true or vim.b[var .. '_disable'] == true end
+  H.is_disabled = function()
+    return vim.g[var .. '_disable'] == true or vim.b[var .. '_disable'] == true
+  end
 
   -- Resolve config at call time: defaults < `setup()` < buffer < per-call. The
   -- buffer variable is read off `buf_id` rather than the current buffer, because
@@ -61,7 +75,9 @@ Util.new = function(name, mod)
 
   -- An empty `lhs` is the documented way for users to turn a mapping off
   H.map = function(mode, lhs, rhs, opts)
-    if lhs == '' then return end
+    if lhs == '' then
+      return
+    end
     opts = vim.tbl_deep_extend('force', { silent = true }, opts or {})
     vim.keymap.set(mode, lhs, rhs, opts)
   end

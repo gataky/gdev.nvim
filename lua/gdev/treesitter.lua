@@ -122,16 +122,24 @@ GdevTreesitter.config = {
 ---@return string|nil Parser language that was started, or `nil` when the buffer
 ---   is not a Godot buffer or its parser is not installed.
 GdevTreesitter.attach = function(buf_id)
-  if H.is_disabled() then return nil end
+  if H.is_disabled() then
+    return nil
+  end
 
   buf_id = H.validate_buf_id(buf_id)
 
   local lang = H.resolve_lang(vim.bo[buf_id].filetype)
-  if lang == nil then return nil end
+  if lang == nil then
+    return nil
+  end
 
   local config = H.get_config(nil, buf_id)
-  if config.highlight and not H.has_highlighter(buf_id) then pcall(vim.treesitter.start, buf_id, lang) end
-  if config.fold then H.enable_folding(buf_id) end
+  if config.highlight and not H.has_highlighter(buf_id) then
+    pcall(vim.treesitter.start, buf_id, lang)
+  end
+  if config.fold then
+    H.enable_folding(buf_id)
+  end
 
   return lang
 end
@@ -186,9 +194,13 @@ H.setup_config = function(config)
   return config
 end
 
-H.apply_config = function(config) GdevTreesitter.config = config end
+H.apply_config = function(config)
+  GdevTreesitter.config = config
+end
 
-H.register_filetypes = function() vim.filetype.add(vim.deepcopy(H.filetypes)) end
+H.register_filetypes = function()
+  vim.filetype.add(vim.deepcopy(H.filetypes))
+end
 
 H.create_autocommands = function()
   local gr = vim.api.nvim_create_augroup('GdevTreesitter', {})
@@ -196,35 +208,45 @@ H.create_autocommands = function()
   vim.api.nvim_create_autocmd('FileType', {
     group = gr,
     pattern = vim.tbl_keys(H.lang_candidates),
-    callback = function(args) GdevTreesitter.attach(args.buf) end,
+    callback = function(args)
+      GdevTreesitter.attach(args.buf)
+    end,
     desc = 'Start treesitter in Godot buffers',
   })
 end
 
 H.attach_open_buffers = function()
   for _, buf_id in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(buf_id) then GdevTreesitter.attach(buf_id) end
+    if vim.api.nvim_buf_is_loaded(buf_id) then
+      GdevTreesitter.attach(buf_id)
+    end
   end
 end
 
 -- Parsers --------------------------------------------------------------------
 H.resolve_lang = function(filetype)
   local candidates = H.lang_candidates[filetype]
-  if candidates == nil then return nil end
+  if candidates == nil then
+    return nil
+  end
 
   -- An existing registration wins: someone pointing a Godot filetype at their
   -- own parser build should not be second-guessed. `get_lang()` echoes the
   -- filetype back when nothing is registered, which the candidates cover anyway.
   local order = {}
   local registered = vim.treesitter.language.get_lang(filetype)
-  if registered ~= nil and registered ~= filetype then table.insert(order, registered) end
+  if registered ~= nil and registered ~= filetype then
+    table.insert(order, registered)
+  end
   vim.list_extend(order, candidates)
 
   for _, lang in ipairs(order) do
     if H.has_parser(lang) then
       -- Point the filetype at the parser that exists, so the rest of
       -- |vim.treesitter| resolves the same language without being told
-      if registered ~= lang then vim.treesitter.language.register(lang, filetype) end
+      if registered ~= lang then
+        vim.treesitter.language.register(lang, filetype)
+      end
       return lang
     end
   end
@@ -243,7 +265,9 @@ end
 H.has_highlighter = function(buf_id)
   -- No public predicate exists for this, and tracking it here would miss
   -- highlighting somebody else started, which is the case worth detecting
-  local ok, active = pcall(function() return vim.treesitter.highlighter.active[buf_id] end)
+  local ok, active = pcall(function()
+    return vim.treesitter.highlighter.active[buf_id]
+  end)
   return ok and active ~= nil
 end
 

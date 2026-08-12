@@ -11,10 +11,16 @@ local child = helpers.new_child_neovim()
 local eq = helpers.expect.equality
 local new_set = MiniTest.new_set
 
-local load_rst = function() child.lua([[_G.Rst = require('gdev.rst')]]) end
+local load_rst = function()
+  child.lua([[_G.Rst = require('gdev.rst')]])
+end
 
-local convert = function(rst) return child.lua_get('Rst.to_markdown(...)', { rst }) end
-local inline = function(text) return child.lua_get('Rst.inline(...)', { text }) end
+local convert = function(rst)
+  return child.lua_get('Rst.to_markdown(...)', { rst })
+end
+local inline = function(text)
+  return child.lua_get('Rst.inline(...)', { text })
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -115,7 +121,10 @@ T['to_markdown()']['converts the nested code tabs of the class reference'] = fun
     var node = new Node();
 ]]
 
-  eq(convert(rst), '```gdscript\nvar node = Node.new()\n```\n\n```csharp\nvar node = new Node();\n```')
+  eq(
+    convert(rst),
+    '```gdscript\nvar node = Node.new()\n```\n\n```csharp\nvar node = new Node();\n```'
+  )
 end
 
 T['to_markdown()']['converts admonitions to alerts'] = new_set({
@@ -129,7 +138,10 @@ T['to_markdown()']['converts admonitions to alerts'] = new_set({
 })
 
 T['to_markdown()']['keeps an admonition argument as its first line'] = function()
-  eq(convert('.. deprecated:: 4.2\n\n\tUse something else.\n'), '> [!DEPRECATED]\n> 4.2\n>\n> Use something else.')
+  eq(
+    convert('.. deprecated:: 4.2\n\n\tUse something else.\n'),
+    '> [!DEPRECATED]\n> 4.2\n>\n> Use something else.'
+  )
 end
 
 T['to_markdown()']['converts grid tables'] = function()
@@ -181,7 +193,10 @@ T['to_markdown()']['joins a table cell wrapped over several rows'] = function()
 end
 
 T['to_markdown()']['pads a short row to the widest one'] = function()
-  eq(convert('+---+---+\n| a | b |\n+---+---+\n| c |\n+---+---+\n'), '| a | b |\n| --- | --- |\n| c |  |')
+  eq(
+    convert('+---+---+\n| a | b |\n+---+---+\n| c |\n+---+---+\n'),
+    '| a | b |\n| --- | --- |\n| c |  |'
+  )
 end
 
 T['to_markdown()']['reads a lone bar line as text, not as a table'] = function()
@@ -191,7 +206,10 @@ T['to_markdown()']['reads a lone bar line as text, not as a table'] = function()
 end
 
 T['to_markdown()']['keeps the body of an unknown directive'] = function()
-  eq(convert('.. container:: contribute\n\n\tThere is no description yet.\n'), 'There is no description yet.')
+  eq(
+    convert('.. container:: contribute\n\n\tThere is no description yet.\n'),
+    'There is no description yet.'
+  )
 end
 
 T['to_markdown()']['drops the body of a navigational directive'] = function()
@@ -208,11 +226,17 @@ T['to_markdown()']['converts lists'] = function()
 2. Step two
 ]]
 
-  eq(convert(rst), '- First item that wraps onto a second line\n- Second item\n\n1. Step one\n2. Step two')
+  eq(
+    convert(rst),
+    '- First item that wraps onto a second line\n- Second item\n\n1. Step one\n2. Step two'
+  )
 end
 
 T['to_markdown()']['joins the lines of a paragraph'] = function()
-  eq(convert('One line\nand another\n\nA second paragraph\n'), 'One line and another\n\nA second paragraph')
+  eq(
+    convert('One line\nand another\n\nA second paragraph\n'),
+    'One line and another\n\nA second paragraph'
+  )
 end
 
 T['to_markdown()']['collapses runs of blank lines'] = function()
@@ -226,7 +250,9 @@ end
 T['to_markdown()']['returns an empty string for anything unusable'] = new_set({
   parametrize = { { '' }, { '\n\n' }, { '.. _class_Node:\n' } },
 }, {
-  test = function(rst) eq(convert(rst), '') end,
+  test = function(rst)
+    eq(convert(rst), '')
+  end,
 })
 
 T['to_markdown()']['returns an empty string for a non-string'] = function()
@@ -235,7 +261,9 @@ T['to_markdown()']['returns an empty string for a non-string'] = function()
 end
 
 T['to_markdown()']['converts a whole class page'] = function()
-  local page = child.lua_get([[table.concat(vim.fn.readfile('tests/dir-docs/site/classes/class_node.rst'), '\n')]])
+  local page = child.lua_get(
+    [[table.concat(vim.fn.readfile('tests/dir-docs/site/classes/class_node.rst'), '\n')]]
+  )
   local markdown = convert(page)
 
   eq(vim.split(markdown, '\n', { plain = true })[1], '# Node')
@@ -250,7 +278,9 @@ end
 
 T['inline()'] = new_set()
 
-T['inline()']['converts literals'] = function() eq(inline('Adds ``node`` to the tree.'), 'Adds `node` to the tree.') end
+T['inline()']['converts literals'] = function()
+  eq(inline('Adds ``node`` to the tree.'), 'Adds `node` to the tree.')
+end
 
 T['inline()']['keeps the label of a cross reference'] = function()
   eq(inline(':ref:`Node<class_Node>`'), '`Node`')
@@ -260,13 +290,18 @@ T['inline()']['keeps the label of a cross reference'] = function()
 end
 
 T['inline()']['expands abbreviations'] = function()
-  eq(inline(':abbr:`const (This method has no side effects.)`'), 'const (This method has no side effects.)')
+  eq(
+    inline(':abbr:`const (This method has no side effects.)`'),
+    'const (This method has no side effects.)'
+  )
 end
 
 T['inline()']['converts code-like roles'] = new_set({
   parametrize = { { 'code' }, { 'kbd' }, { 'math' }, { 'literal' }, { 'file' } },
 }, {
-  test = function(role) eq(inline((':%s:`x`'):format(role)), '`x`') end,
+  test = function(role)
+    eq(inline((':%s:`x`'):format(role)), '`x`')
+  end,
 })
 
 T['inline()']['expands the substitutions of the class reference'] = function()
@@ -275,11 +310,16 @@ T['inline()']['expands the substitutions of the class reference'] = function()
   eq(inline('|bitfield|\\[`int`\\]'), 'BitField[`int`]')
 end
 
-T['inline()']['leaves an unknown substitution alone'] = function() eq(inline('|whatever| text'), '|whatever| text') end
+T['inline()']['leaves an unknown substitution alone'] = function()
+  eq(inline('|whatever| text'), '|whatever| text')
+end
 
 T['inline()']['removes escapes'] = function()
   -- An escaped space joins markup to what follows it and is not a character
-  eq(inline('**add_child**\\ (\\ node\\: :ref:`Node<class_Node>`\\ )'), '**add_child**(node: `Node`)')
+  eq(
+    inline('**add_child**\\ (\\ node\\: :ref:`Node<class_Node>`\\ )'),
+    '**add_child**(node: `Node`)'
+  )
 end
 
 T['inline()']['drops the self-link of a generated definition'] = function()
@@ -294,7 +334,9 @@ T['inline()']['keeps the target of an external link'] = function()
   eq(inline('See `the manual`__ for more.'), 'See the manual for more.')
 end
 
-T['inline()']['trims what it returns'] = function() eq(inline('   spaced   '), 'spaced') end
+T['inline()']['trims what it returns'] = function()
+  eq(inline('   spaced   '), 'spaced')
+end
 
 T['inline()']['returns an empty string for anything unusable'] = function()
   eq(inline(''), '')

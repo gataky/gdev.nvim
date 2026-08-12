@@ -9,7 +9,9 @@ local new_set = MiniTest.new_set
 -- hook early enough to set it.
 local start = function(enabled)
   local args = { '-u', 'scripts/minimal_init.lua' }
-  if enabled then args = vim.list_extend({ '--cmd', 'let g:gdev_dev_reload = 1' }, args) end
+  if enabled then
+    args = vim.list_extend({ '--cmd', 'let g:gdev_dev_reload = 1' }, args)
+  end
   child.restart(args)
   child.bo.readonly = false
 
@@ -46,7 +48,11 @@ T['gate']['opens with `vim.g.gdev_dev_reload`'] = function()
   eq(child.fn.exists('#GdevDevReload'), 1)
 end
 
-T['reload'] = new_set({ hooks = { pre_case = function() start(true) end } })
+T['reload'] = new_set({ hooks = {
+  pre_case = function()
+    start(true)
+  end,
+} })
 
 T['reload']['replaces a module that was set up'] = function()
   child.lua([[require('gdev.run').setup({ godot = 'godot4' })]])

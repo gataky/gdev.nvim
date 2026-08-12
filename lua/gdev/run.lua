@@ -157,10 +157,14 @@ GdevRun.config = {
 ---
 ---@return boolean Whether the engine was started.
 GdevRun.run_project = function(opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local config, root = H.resolve(opts)
-  if root == nil then return false end
+  if root == nil then
+    return false
+  end
 
   return H.launch(nil, root, config)
 end
@@ -181,10 +185,14 @@ end
 ---
 ---@return boolean Whether the engine was started, or a picker was opened.
 GdevRun.run_current_scene = function(opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local config, root = H.resolve(opts)
-  if root == nil then return false end
+  if root == nil then
+    return false
+  end
 
   local path = H.buffer_path()
   if path == nil then
@@ -194,10 +202,15 @@ GdevRun.run_current_scene = function(opts)
 
   -- The root was found by walking up from this very path, so it always
   -- contains it and `to_res()` cannot fail here
-  if Project.is_scene(path) then return H.launch(Project.to_res(root, path), root, config) end
+  if Project.is_scene(path) then
+    return H.launch(Project.to_res(root, path), root, config)
+  end
 
   if not Project.is_script(path, config.script_extensions) then
-    H.notify(('%s is neither a scene nor a Godot script'):format(vim.fn.fnamemodify(path, ':t')), 'ERROR')
+    H.notify(
+      ('%s is neither a scene nor a Godot script'):format(vim.fn.fnamemodify(path, ':t')),
+      'ERROR'
+    )
     return false
   end
 
@@ -207,7 +220,9 @@ GdevRun.run_current_scene = function(opts)
     H.notify(('no scene in %s uses %s'):format(root, res), 'ERROR')
     return false
   end
-  if #scenes == 1 then return H.launch(scenes[1], root, config) end
+  if #scenes == 1 then
+    return H.launch(scenes[1], root, config)
+  end
 
   return H.select(scenes, ('Scenes using %s'):format(res), root, config)
 end
@@ -224,12 +239,16 @@ end
 ---
 ---@return boolean Whether the engine was started.
 GdevRun.run_scene = function(scene, opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   H.check_type('scene', scene, 'string')
 
   local config, root = H.resolve(opts)
-  if root == nil then return false end
+  if root == nil then
+    return false
+  end
 
   local res = Project.to_res(root, scene)
   if res == nil then
@@ -250,10 +269,14 @@ end
 ---
 ---@return boolean Whether a picker was opened.
 GdevRun.pick_scene = function(opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local config, root = H.resolve(opts)
-  if root == nil then return false end
+  if root == nil then
+    return false
+  end
 
   local scenes = Project.list_scenes(root)
   if #scenes == 0 then
@@ -277,7 +300,9 @@ end
 ---
 ---@return boolean Whether a console window is now open.
 GdevRun.show_console = function(opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   local buf_id = H.console.buf_id
   if buf_id == nil or not vim.api.nvim_buf_is_valid(buf_id) then
@@ -360,37 +385,63 @@ H.setup_config = function(config)
 end
 
 H.check_one_of = function(field, value, allowed)
-  if vim.tbl_contains(allowed, value) then return end
+  if vim.tbl_contains(allowed, value) then
+    return
+  end
   local quoted = vim.tbl_map(vim.inspect, allowed)
-  H.error(('`%s` should be one of %s, not %s'):format(field, table.concat(quoted, ', '), vim.inspect(value)))
+  H.error(
+    ('`%s` should be one of %s, not %s'):format(
+      field,
+      table.concat(quoted, ', '),
+      vim.inspect(value)
+    )
+  )
 end
 
 H.check_fraction = function(field, value)
-  if type(value) == 'number' and 0 < value and value <= 1 then return end
+  if type(value) == 'number' and 0 < value and value <= 1 then
+    return
+  end
   H.error(('`%s` should be a number between 0 and 1, not %s'):format(field, vim.inspect(value)))
 end
 
 -- |nvim_open_win()| takes a border style by name or as an array of characters,
 -- and both are worth allowing through
 H.check_border = function(field, value)
-  if type(value) == 'string' or type(value) == 'table' then return end
+  if type(value) == 'string' or type(value) == 'table' then
+    return
+  end
   H.error(('`%s` should be a string or table, not %s'):format(field, type(value)))
 end
 
-H.apply_config = function(config) GdevRun.config = config end
+H.apply_config = function(config)
+  GdevRun.config = config
+end
 
 H.create_user_commands = function()
-  local command = function(name, callback, opts) vim.api.nvim_create_user_command(name, callback, opts or {}) end
+  local command = function(name, callback, opts)
+    vim.api.nvim_create_user_command(name, callback, opts or {})
+  end
 
-  command('GdevRunProject', function() GdevRun.run_project() end, { desc = 'Run the Godot project' })
-  command('GdevRunCurrentScene', function() GdevRun.run_current_scene() end, { desc = 'Run the current Godot scene' })
-  command('GdevRunScene', function(data) GdevRun.run_scene(data.args) end, {
+  command('GdevRunProject', function()
+    GdevRun.run_project()
+  end, { desc = 'Run the Godot project' })
+  command('GdevRunCurrentScene', function()
+    GdevRun.run_current_scene()
+  end, { desc = 'Run the current Godot scene' })
+  command('GdevRunScene', function(data)
+    GdevRun.run_scene(data.args)
+  end, {
     nargs = 1,
     complete = 'file',
     desc = 'Run a Godot scene by path',
   })
-  command('GdevRunPicker', function() GdevRun.pick_scene() end, { desc = 'Pick a Godot scene to run' })
-  command('GdevRunConsole', function() GdevRun.show_console() end, { desc = 'Show the captured Godot output' })
+  command('GdevRunPicker', function()
+    GdevRun.pick_scene()
+  end, { desc = 'Pick a Godot scene to run' })
+  command('GdevRunConsole', function()
+    GdevRun.show_console()
+  end, { desc = 'Show the captured Godot output' })
 end
 
 -- Launching ------------------------------------------------------------------
@@ -399,7 +450,9 @@ end
 H.resolve = function(opts)
   local config = H.get_config(opts)
   local root = Project.find_root(H.buffer_path())
-  if root == nil then H.notify('no `project.godot` above the current buffer or working directory', 'ERROR') end
+  if root == nil then
+    H.notify('no `project.godot` above the current buffer or working directory', 'ERROR')
+  end
   return config, root
 end
 
@@ -410,9 +463,13 @@ H.launch = function(scene, root, config)
   end
 
   local cmd = { config.godot, '--path', root }
-  if scene ~= nil then table.insert(cmd, scene) end
+  if scene ~= nil then
+    table.insert(cmd, scene)
+  end
 
-  if config.console.enabled then return H.console_run(cmd, root, config) end
+  if config.console.enabled then
+    return H.console_run(cmd, root, config)
+  end
 
   -- Detached, so closing Neovim leaves the game running. Output is not piped
   -- anywhere a user can read; `config.console.enabled` is the fix for that.
@@ -421,7 +478,9 @@ H.launch = function(scene, root, config)
 end
 
 H.report_exit = function(out)
-  if out.code == 0 then return end
+  if out.code == 0 then
+    return
+  end
 
   local reported = vim.trim(out.stderr or '')
   H.notify(reported ~= '' and reported or ('Godot exited with %d'):format(out.code), 'ERROR')
@@ -433,7 +492,9 @@ end
 -- happens to be in when the picker closes.
 H.select = function(scenes, prompt, root, config)
   vim.ui.select(scenes, { prompt = prompt }, function(choice)
-    if choice == nil then return end
+    if choice == nil then
+      return
+    end
     H.launch(choice, root, config)
   end)
   return true
@@ -470,7 +531,9 @@ H.console_run = function(cmd, root, config)
   local stream = function(name)
     return function(err, data)
       vim.schedule(function()
-        if err ~= nil then return H.console_append({ ('[%s error] %s'):format(name, err) }) end
+        if err ~= nil then
+          return H.console_append({ ('[%s error] %s'):format(name, err) })
+        end
         H.console_append(H.console_split(name, data))
       end)
     end
@@ -482,7 +545,9 @@ H.console_run = function(cmd, root, config)
     stdout = stream('stdout'),
     stderr = stream('stderr'),
   }, function(out)
-    vim.schedule(function() H.console_finish(out) end)
+    vim.schedule(function()
+      H.console_finish(out)
+    end)
   end)
 
   if not ok then
@@ -497,7 +562,9 @@ end
 -- Complete lines from a chunk, holding back whatever followed the last newline
 -- until the next chunk (or the exit) completes it
 H.console_split = function(name, data)
-  if data == nil or data == '' then return {} end
+  if data == nil or data == '' then
+    return {}
+  end
 
   local lines = vim.split(H.console.partial[name] .. data, '\n', { plain = true })
   H.console.partial[name] = table.remove(lines)
@@ -507,8 +574,12 @@ end
 
 -- Streams interleave in one window, so the less usual one is marked
 H.console_label = function(name, lines)
-  if name ~= 'stderr' then return lines end
-  return vim.tbl_map(function(line) return '[stderr] ' .. line end, lines)
+  if name ~= 'stderr' then
+    return lines
+  end
+  return vim.tbl_map(function(line)
+    return '[stderr] ' .. line
+  end, lines)
 end
 
 H.console_finish = function(out)
@@ -517,17 +588,24 @@ H.console_finish = function(out)
   local lines = {}
   for _, name in ipairs({ 'stdout', 'stderr' }) do
     local pending = H.console.partial[name]
-    if pending ~= '' then vim.list_extend(lines, H.console_label(name, { pending })) end
+    if pending ~= '' then
+      vim.list_extend(lines, H.console_label(name, { pending }))
+    end
     H.console.partial[name] = ''
   end
 
-  vim.list_extend(lines, { '', ('[exited] code=%d signal=%d'):format(out.code or 0, out.signal or 0) })
+  vim.list_extend(
+    lines,
+    { '', ('[exited] code=%d signal=%d'):format(out.code or 0, out.signal or 0) }
+  )
   H.console_append(lines)
 end
 
 H.console_buf = function()
   local buf_id = H.console.buf_id
-  if buf_id ~= nil and vim.api.nvim_buf_is_valid(buf_id) then return buf_id end
+  if buf_id ~= nil and vim.api.nvim_buf_is_valid(buf_id) then
+    return buf_id
+  end
 
   -- A reloaded module starts with empty state while the buffer its previous
   -- incarnation named is still around, and buffer names have to be unique
@@ -553,7 +631,9 @@ H.console_open = function(buf_id, config, focus)
 
   if win_id ~= nil and vim.api.nvim_win_is_valid(win_id) then
     vim.api.nvim_win_set_buf(win_id, buf_id)
-    if focus then vim.api.nvim_set_current_win(win_id) end
+    if focus then
+      vim.api.nvim_set_current_win(win_id)
+    end
   elseif config.console.renderer == 'float' then
     H.console.win_id = vim.api.nvim_open_win(buf_id, focus, H.float_config(config.console.float))
   else
@@ -576,13 +656,15 @@ H.open_split = function(buf_id, opts, focus)
   local vertical = opts.position == 'right'
   local editor = vertical and vim.o.columns or vim.o.lines
   local win_config = { split = vertical and 'right' or 'below', win = -1 }
-  win_config[vertical and 'width' or 'height'] = math.max(math.floor(editor * opts.size), H.min_size)
+  win_config[vertical and 'width' or 'height'] =
+    math.max(math.floor(editor * opts.size), H.min_size)
 
   return vim.api.nvim_open_win(buf_id, focus, win_config)
 end
 
 H.float_config = function(opts)
-  local width = math.min(math.max(math.floor(vim.o.columns * opts.width), H.min_size), vim.o.columns)
+  local width =
+    math.min(math.max(math.floor(vim.o.columns * opts.width), H.min_size), vim.o.columns)
   local height = math.min(math.max(math.floor(vim.o.lines * opts.height), H.min_size), vim.o.lines)
 
   return {
@@ -601,10 +683,13 @@ end
 -- A log is read, not edited: no wrapping (engine backtraces are long and the
 -- columns line up), no numbers, nothing in the gutter
 H.window_options = function(win_id)
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return
+  end
 
   local wo = vim.wo[win_id]
-  wo.wrap, wo.number, wo.relativenumber, wo.signcolumn, wo.cursorline = false, false, false, 'no', false
+  wo.wrap, wo.number, wo.relativenumber, wo.signcolumn, wo.cursorline =
+    false, false, false, 'no', false
 end
 
 H.console_write = function(buf_id, start, finish, lines)
@@ -615,7 +700,9 @@ end
 
 H.console_append = function(lines)
   local buf_id = H.console.buf_id
-  if #lines == 0 or buf_id == nil or not vim.api.nvim_buf_is_valid(buf_id) then return end
+  if #lines == 0 or buf_id == nil or not vim.api.nvim_buf_is_valid(buf_id) then
+    return
+  end
 
   H.console_write(buf_id, -1, -1, lines)
   H.console_follow(buf_id)
@@ -626,8 +713,12 @@ end
 -- alternative is a window that silently stops updating.
 H.console_follow = function(buf_id)
   local win_id = H.console.win_id
-  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then return end
-  if vim.api.nvim_win_get_buf(win_id) ~= buf_id then return end
+  if win_id == nil or not vim.api.nvim_win_is_valid(win_id) then
+    return
+  end
+  if vim.api.nvim_win_get_buf(win_id) ~= buf_id then
+    return
+  end
 
   vim.api.nvim_win_set_cursor(win_id, { vim.api.nvim_buf_line_count(buf_id), 0 })
 end
@@ -638,7 +729,9 @@ end
 -- from something like `gdev://run-console` finds nothing at all -- worse than
 -- falling back to the working directory.
 H.buffer_path = function()
-  if vim.bo.buftype ~= '' then return nil end
+  if vim.bo.buftype ~= '' then
+    return nil
+  end
 
   local path = vim.api.nvim_buf_get_name(0)
   return path ~= '' and path or nil
@@ -646,7 +739,9 @@ end
 
 H.find_buf = function(name)
   for _, buf_id in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_get_name(buf_id) == name then return buf_id end
+    if vim.api.nvim_buf_get_name(buf_id) == name then
+      return buf_id
+    end
   end
 end
 

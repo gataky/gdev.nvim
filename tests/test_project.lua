@@ -18,8 +18,12 @@ local load_project = function()
   ]])
 end
 
-local root = function() return child.lua_get('_G.root') end
-local lua_get = function(code, ...) return child.lua_get(code, { ... }) end
+local root = function()
+  return child.lua_get('_G.root')
+end
+local lua_get = function(code, ...)
+  return child.lua_get(code, { ... })
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -89,7 +93,9 @@ T['to_res()']['normalizes the path first'] = function()
   eq(lua_get('P.to_res(_G.root, ...)', './scenes/../scenes//Level.tscn'), 'res://scenes/Level.tscn')
 end
 
-T['to_res()']['maps the root itself to `res://`'] = function() eq(child.lua_get('P.to_res(_G.root, _G.root)'), 'res://') end
+T['to_res()']['maps the root itself to `res://`'] = function()
+  eq(child.lua_get('P.to_res(_G.root, _G.root)'), 'res://')
+end
 
 T['to_res()']['rejects a path outside the project'] = new_set({
   parametrize = {
@@ -101,7 +107,9 @@ T['to_res()']['rejects a path outside the project'] = new_set({
     { '"/etc/passwd"' },
   },
 }, {
-  test = function(argument) eq(child.lua_get('P.to_res(_G.root, ' .. argument .. ')'), vim.NIL) end,
+  test = function(argument)
+    eq(child.lua_get('P.to_res(_G.root, ' .. argument .. ')'), vim.NIL)
+  end,
 })
 
 T['to_res()']['rejects a sibling whose name starts with the root'] = function()
@@ -118,7 +126,9 @@ T['to_res()']['returns nil for missing arguments'] = new_set({
     { '_G.root, 1' },
   },
 }, {
-  test = function(arguments) eq(child.lua_get('P.to_res(' .. arguments .. ')'), vim.NIL) end,
+  test = function(arguments)
+    eq(child.lua_get('P.to_res(' .. arguments .. ')'), vim.NIL)
+  end,
 })
 
 T['to_path()'] = new_set()
@@ -127,7 +137,9 @@ T['to_path()']['resolves a `res://` path against the root'] = function()
   eq(lua_get('P.to_path(_G.root, ...)', 'res://scenes/Level.tscn'), root() .. '/scenes/Level.tscn')
 end
 
-T['to_path()']['maps `res://` to the root'] = function() eq(child.lua_get('P.to_path(_G.root, "res://")'), root()) end
+T['to_path()']['maps `res://` to the root'] = function()
+  eq(child.lua_get('P.to_path(_G.root, "res://")'), root())
+end
 
 T['to_path()']['reverses to_res()'] = function()
   eq(
@@ -139,7 +151,9 @@ end
 T['to_path()']['rejects anything that is not a `res://` path'] = new_set({
   parametrize = { { '"scenes/Level.tscn"' }, { '"/tmp/Level.tscn"' }, { 'nil' }, { '1' } },
 }, {
-  test = function(argument) eq(child.lua_get('P.to_path(_G.root, ' .. argument .. ')'), vim.NIL) end,
+  test = function(argument)
+    eq(child.lua_get('P.to_path(_G.root, ' .. argument .. ')'), vim.NIL)
+  end,
 })
 
 T['to_path()']['rejects a path that escapes the project'] = function()
@@ -170,7 +184,9 @@ T['list_scenes()']['is empty for a project with no scenes'] = function()
   eq(child.lua_get('P.list_scenes(_G.empty)'), {})
 end
 
-T['list_scenes()']['is empty without a root'] = function() eq(child.lua_get('P.list_scenes(nil)'), {}) end
+T['list_scenes()']['is empty without a root'] = function()
+  eq(child.lua_get('P.list_scenes(nil)'), {})
+end
 
 T['scenes_with_script()'] = new_set()
 
@@ -183,7 +199,10 @@ T['scenes_with_script()']['finds every scene using the script, sorted'] = functi
 end
 
 T['scenes_with_script()']['finds a single user'] = function()
-  eq(child.lua_get('P.scenes_with_script(_G.root, "scripts/level.gd")'), { 'res://scenes/Level.tscn' })
+  eq(
+    child.lua_get('P.scenes_with_script(_G.root, "scripts/level.gd")'),
+    { 'res://scenes/Level.tscn' }
+  )
 end
 
 T['scenes_with_script()']['is empty for an unused script'] = function()
@@ -193,10 +212,17 @@ T['scenes_with_script()']['is empty for an unused script'] = function()
 end
 
 T['scenes_with_script()']['accepts every spelling of the script path'] = new_set({
-  parametrize = { { '"scripts/level.gd"' }, { '"res://scripts/level.gd"' }, { '_G.root .. "/scripts/level.gd"' } },
+  parametrize = {
+    { '"scripts/level.gd"' },
+    { '"res://scripts/level.gd"' },
+    { '_G.root .. "/scripts/level.gd"' },
+  },
 }, {
   test = function(argument)
-    eq(child.lua_get('P.scenes_with_script(_G.root, ' .. argument .. ')'), { 'res://scenes/Level.tscn' })
+    eq(
+      child.lua_get('P.scenes_with_script(_G.root, ' .. argument .. ')'),
+      { 'res://scenes/Level.tscn' }
+    )
   end,
 })
 
@@ -217,7 +243,9 @@ T['is_scene()']['recognizes scene files'] = new_set({
     { 'nil', false },
   },
 }, {
-  test = function(argument, expected) eq(child.lua_get('P.is_scene(' .. argument .. ')'), expected) end,
+  test = function(argument, expected)
+    eq(child.lua_get('P.is_scene(' .. argument .. ')'), expected)
+  end,
 })
 
 T['is_script()'] = new_set()
@@ -231,7 +259,9 @@ T['is_script()']['defaults to GDScript'] = new_set({
     { 'nil', false },
   },
 }, {
-  test = function(argument, expected) eq(child.lua_get('P.is_script(' .. argument .. ')'), expected) end,
+  test = function(argument, expected)
+    eq(child.lua_get('P.is_script(' .. argument .. ')'), expected)
+  end,
 })
 
 T['is_script()']['respects the extension list'] = function()

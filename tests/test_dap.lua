@@ -5,13 +5,17 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('dap', config) end
+local load_module = function(config)
+  child.gdev_load('dap', config)
+end
 
 -- nvim-dap is a real dependency under `deps/`, but 'scripts/minimal_init.lua'
 -- deliberately leaves it off 'runtimepath': a child that has not opted in is a
 -- runtime with no nvim-dap, which is what makes the missing-dependency path
 -- testable without any faking.
-local enable_dap = function() child.lua([[vim.cmd('set rtp+=deps/nvim-dap')]]) end
+local enable_dap = function()
+  child.lua([[vim.cmd('set rtp+=deps/nvim-dap')]])
+end
 local load_with_dap = function(config)
   enable_dap()
   load_module(config)
@@ -66,8 +70,20 @@ local default_configurations = {
 }
 
 local custom_configurations = {
-  { type = 'godot', request = 'launch', name = 'Launch project', project = '/tmp/game', launch_scene = false },
-  { type = 'godot', request = 'launch', name = 'Launch scene', project = '/tmp/game', launch_scene = true },
+  {
+    type = 'godot',
+    request = 'launch',
+    name = 'Launch project',
+    project = '/tmp/game',
+    launch_scene = false,
+  },
+  {
+    type = 'godot',
+    request = 'launch',
+    name = 'Launch scene',
+    project = '/tmp/game',
+    launch_scene = true,
+  },
 }
 
 -- Output test set ============================================================
@@ -111,7 +127,12 @@ T['setup()']['creates `config` field'] = function()
 end
 
 T['setup()']['respects `config` argument'] = function()
-  load_with_dap({ host = '0.0.0.0', port = 7006, dapui = false, configurations = custom_configurations })
+  load_with_dap({
+    host = '0.0.0.0',
+    port = 7006,
+    dapui = false,
+    configurations = custom_configurations,
+  })
 
   eq(child.lua_get('GdevDap.config.host'), '0.0.0.0')
   eq(child.lua_get('GdevDap.config.port'), 7006)
@@ -121,7 +142,9 @@ end
 
 T['setup()']['validates `config` argument'] = function()
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -143,7 +166,10 @@ end
 T['setup()']['respects `config.host` and `config.port`'] = function()
   load_with_dap({ host = '192.168.1.5', port = 7006 })
 
-  eq(child.lua_get('require("dap").adapters.godot'), { type = 'server', host = '192.168.1.5', port = 7006 })
+  eq(
+    child.lua_get('require("dap").adapters.godot'),
+    { type = 'server', host = '192.168.1.5', port = 7006 }
+  )
 end
 
 T['setup()']['respects `config.configurations`'] = function()
@@ -165,7 +191,10 @@ T['setup()']['can be called repeatedly'] = function()
   load_with_dap()
   load_module({ port = 7006, configurations = custom_configurations })
 
-  eq(child.lua_get('require("dap").adapters.godot'), { type = 'server', host = '127.0.0.1', port = 7006 })
+  eq(
+    child.lua_get('require("dap").adapters.godot'),
+    { type = 'server', host = '127.0.0.1', port = 7006 }
+  )
   eq(child.lua_get('require("dap").configurations.gdscript'), custom_configurations)
 end
 

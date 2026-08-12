@@ -157,7 +157,9 @@ H.setup_config = function(config)
   return config
 end
 
-H.apply_config = function(config) GdevDap.config = config end
+H.apply_config = function(config)
+  GdevDap.config = config
+end
 
 -- Adapter registration -------------------------------------------------------
 H.register_gdscript = function(config)
@@ -165,7 +167,10 @@ H.register_gdscript = function(config)
   local configurations = config.configurations or H.default_configurations
 
   if not H.register_language(H.filetype, H.adapter_name, adapter, configurations) then
-    H.notify("nvim-dap is not available, so Godot debugging is off; install 'mfussenegger/nvim-dap'", 'WARN')
+    H.notify(
+      "nvim-dap is not available, so Godot debugging is off; install 'mfussenegger/nvim-dap'",
+      'WARN'
+    )
     return
   end
 
@@ -181,7 +186,9 @@ end
 -- language.
 H.register_language = function(filetype, adapter_name, adapter, configurations)
   local dap = H.get_dap()
-  if dap == nil then return false end
+  if dap == nil then
+    return false
+  end
 
   dap.adapters[adapter_name] = adapter
   -- Copied, so that later edits to `GdevDap.config.configurations` cannot reach
@@ -192,7 +199,9 @@ end
 
 H.configure_dapui = function(config)
   local dap = H.get_dap()
-  if dap == nil then return end
+  if dap == nil then
+    return
+  end
 
   -- Cleared first: a `setup()` that turns the integration off has to take the
   -- previous call's listeners with it
@@ -200,20 +209,28 @@ H.configure_dapui = function(config)
   dap.listeners.before.event_terminated[H.listener_key] = nil
   dap.listeners.before.event_exited[H.listener_key] = nil
 
-  if not config.dapui then return end
+  if not config.dapui then
+    return
+  end
 
   local ok, dapui = pcall(require, 'dapui')
-  if not ok then return end
+  if not ok then
+    return
+  end
 
   -- Opening is a reaction to a session starting, so the disable protocol
   -- applies. Closing is teardown of a window this module opened and runs
   -- regardless, rather than leaving it behind for a session that has ended.
   dap.listeners.after.event_initialized[H.listener_key] = function()
-    if H.is_disabled() then return end
+    if H.is_disabled() then
+      return
+    end
     dapui.open()
   end
 
-  local close = function() dapui.close() end
+  local close = function()
+    dapui.close()
+  end
   dap.listeners.before.event_terminated[H.listener_key] = close
   dap.listeners.before.event_exited[H.listener_key] = close
 end

@@ -87,7 +87,9 @@ GdevServer.setup = function(config)
   H.create_autocommands(config)
   H.create_user_commands()
 
-  if config.autostart then GdevServer.start() end
+  if config.autostart then
+    GdevServer.start()
+  end
 end
 
 --- Defaults ~
@@ -136,7 +138,9 @@ GdevServer.config = {
 ---@return string|nil Address now being listened on — which |serverstart()| may
 ---   report differently from the one asked for — or `nil` if nothing is.
 GdevServer.start = function(address)
-  if H.is_disabled() then return nil end
+  if H.is_disabled() then
+    return nil
+  end
 
   H.check_type('address', address, 'string', true)
 
@@ -212,11 +216,15 @@ H.setup_config = function(config)
   return config
 end
 
-H.apply_config = function(config) GdevServer.config = config end
+H.apply_config = function(config)
+  GdevServer.config = config
+end
 
 H.create_autocommands = function(config)
   local gr = vim.api.nvim_create_augroup('GdevServer', {})
-  if not config.autostart then return end
+  if not config.autostart then
+    return
+  end
 
   -- `FileType` rather than a `BufReadPost *.gd` pattern: it fires for buffers
   -- that never came from a file, and the Godot filetypes are already the
@@ -224,13 +232,17 @@ H.create_autocommands = function(config)
   vim.api.nvim_create_autocmd('FileType', {
     group = gr,
     pattern = vim.deepcopy(config.filetypes),
-    callback = function() GdevServer.start() end,
+    callback = function()
+      GdevServer.start()
+    end,
     desc = 'Start the editor server for Godot buffers',
   })
 end
 
 H.create_user_commands = function()
-  local start = function(data) GdevServer.start(data.args) end
+  local start = function(data)
+    GdevServer.start(data.args)
+  end
   vim.api.nvim_create_user_command('GdevServerStart', start, {
     nargs = '?',
     complete = 'file',
@@ -240,20 +252,28 @@ end
 
 -- Addresses ------------------------------------------------------------------
 H.resolve_address = function(address, config)
-  if H.is_address(address) then return address end
-  if H.is_address(config.address) then return config.address end
+  if H.is_address(address) then
+    return address
+  end
+  if H.is_address(config.address) then
+    return config.address
+  end
 
   -- `v:servername` is documented as the first entry of `serverlist()`. Reading
   -- the list keeps every question about what this Neovim listens on going
   -- through one API, and unlike `v:servername` it also sees addresses added
   -- later by `serverstart()`.
   local own = H.listening()[1]
-  if H.is_address(own) then return own end
+  if H.is_address(own) then
+    return own
+  end
 
   return H.default_address
 end
 
-H.listening = function() return vim.fn.serverlist() end
+H.listening = function()
+  return vim.fn.serverlist()
+end
 
 -- What occupies `address`: 'ours', 'other', 'stale' or 'free'.
 --
@@ -262,15 +282,23 @@ H.listening = function() return vim.fn.serverlist() end
 -- version is silent and unconditional where this one reports what it removed
 -- and can be turned off.
 H.probe = function(address)
-  if vim.tbl_contains(H.listening(), address) then return 'ours' end
+  if vim.tbl_contains(H.listening(), address) then
+    return 'ours'
+  end
 
   -- Only socket paths leave a file to go stale; a `host:port` that is taken
   -- fails loudly in `serverstart()` and there is nothing to clean up.
-  if not H.is_socket_path(address) then return 'free' end
+  if not H.is_socket_path(address) then
+    return 'free'
+  end
 
   local stat = vim.uv.fs_stat(address)
-  if stat == nil then return 'free' end
-  if H.can_connect(address) then return 'other' end
+  if stat == nil then
+    return 'free'
+  end
+  if H.can_connect(address) then
+    return 'other'
+  end
 
   -- Only a socket inode is evidence of a dead Neovim. Anything else at the
   -- path belongs to somebody else and is reported by `serverstart()` instead.
@@ -279,14 +307,20 @@ end
 
 H.can_connect = function(address)
   local ok, chan = pcall(vim.fn.sockconnect, 'pipe', address, { rpc = true })
-  if not ok or type(chan) ~= 'number' or chan <= 0 then return false end
+  if not ok or type(chan) ~= 'number' or chan <= 0 then
+    return false
+  end
   pcall(vim.fn.chanclose, chan)
   return true
 end
 
 -- Predicates -----------------------------------------------------------------
-H.is_address = function(x) return type(x) == 'string' and x ~= '' end
+H.is_address = function(x)
+  return type(x) == 'string' and x ~= ''
+end
 
-H.is_socket_path = function(address) return address:find(':', 1, true) == nil end
+H.is_socket_path = function(address)
+  return address:find(':', 1, true) == nil
+end
 
 return GdevServer

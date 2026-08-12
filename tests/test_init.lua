@@ -5,7 +5,9 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) return child.lua_get([[require('gdev').setup(...)]], { config }) end
+local load_module = function(config)
+  return child.lua_get([[require('gdev').setup(...)]], { config })
+end
 
 -- Notifications from the umbrella itself, told apart from the ones the modules
 -- it routes to produce -- `gdev.dap` warns about a missing nvim-dap in every
@@ -92,7 +94,9 @@ T['setup()']['creates side effects'] = function()
   eq(child.fn.exists('#Gdev'), 0)
 end
 
-T['setup()']['returns the modules it set up'] = function() eq(load_module(), all_modules) end
+T['setup()']['returns the modules it set up'] = function()
+  eq(load_module(), all_modules)
+end
 
 T['setup()']['forwards each sub-table to its module'] = function()
   load_module(per_module_config)
@@ -131,7 +135,9 @@ end
 
 T['setup()']['validates `config` argument'] = function()
   local expect_config_error = function(config, pattern)
-    expect.error(function() load_module(config) end, pattern)
+    expect.error(function()
+      load_module(config)
+    end, pattern)
   end
 
   expect_config_error('a', vim.pesc('`config`') .. '.*table')
@@ -143,10 +149,9 @@ T['setup()']['validates `config` argument'] = function()
   expect_config_error({ run = 1 }, vim.pesc('`run` should be table or boolean, not number'))
 
   -- Built in the child: a function cannot cross the RPC boundary
-  expect.error(
-    function() child.lua([[require('gdev').setup({ docs = function() end })]]) end,
-    vim.pesc('`docs` should be table or boolean, not function')
-  )
+  expect.error(function()
+    child.lua([[require('gdev').setup({ docs = function() end })]])
+  end, vim.pesc('`docs` should be table or boolean, not function'))
 
   -- Every error carries the umbrella's own prefix
   expect_config_error({ lsp = 'a' }, vim.pesc('(gdev) '))
@@ -155,7 +160,9 @@ end
 T['setup()']['rejects a key naming no module'] = function()
   -- A typo has no observable effect otherwise: the module would simply be set
   -- up with its defaults and the misspelled table ignored
-  expect.error(function() load_module({ treesiter = {} }) end, vim.pesc('unknown module `treesiter`'))
+  expect.error(function()
+    load_module({ treesiter = {} })
+  end, vim.pesc('unknown module `treesiter`'))
 
   -- The message names the keys that would have worked
   local ok, err = pcall(load_module, { treesiter = {} })
@@ -168,7 +175,10 @@ T['setup()']['rejects a key naming no module'] = function()
 end
 
 T['setup()']['skips a module set to `false`'] = function()
-  eq(load_module({ dap = false, docs = false }), { 'lsp', 'treesitter', 'format', 'server', 'run', 'scenetree' })
+  eq(
+    load_module({ dap = false, docs = false }),
+    { 'lsp', 'treesitter', 'format', 'server', 'run', 'scenetree' }
+  )
 
   -- A module that was never set up leaves no trace, which is what makes
   -- `:checkhealth gdev` report it as not set up rather than guess at defaults
@@ -245,17 +255,20 @@ end
 T['errors from a module'] = new_set()
 
 T['errors from a module']['name the module and the field'] = function()
-  expect.error(function() load_module({ run = { console = { enabled = 'a' } } }) end, vim.pesc('(gdev.run) '))
-  expect.error(
-    function() load_module({ run = { console = { enabled = 'a' } } }) end,
-    vim.pesc('`console.enabled` should be boolean, not string')
-  )
+  expect.error(function()
+    load_module({ run = { console = { enabled = 'a' } } })
+  end, vim.pesc('(gdev.run) '))
+  expect.error(function()
+    load_module({ run = { console = { enabled = 'a' } } })
+  end, vim.pesc('`console.enabled` should be boolean, not string'))
 end
 
 T['errors from a module']['leave earlier modules set up'] = function()
   -- Sub-tables cannot be validated without handing them to their module, so a
   -- bad one is reported partway through. Documented, not worked around.
-  expect.error(function() load_module({ docs = { renderer = 1 } }) end, vim.pesc('(gdev.docs) '))
+  expect.error(function()
+    load_module({ docs = { renderer = 1 } })
+  end, vim.pesc('(gdev.docs) '))
 
   eq(child.fn.exists(':GdevLspReconnect'), 2)
   eq(child.fn.exists(':GdevScenetree'), 2)

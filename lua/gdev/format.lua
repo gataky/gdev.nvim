@@ -134,15 +134,21 @@ GdevFormat.config = {
 ---
 ---@return boolean Whether a formatter process was started.
 GdevFormat.format = function(buf_id, opts)
-  if H.is_disabled() then return false end
+  if H.is_disabled() then
+    return false
+  end
 
   buf_id = H.validate_buf_id(buf_id)
 
   local argv = GdevFormat.get_command(buf_id, opts)
-  if argv == nil then return false end
+  if argv == nil then
+    return false
+  end
 
   local path = vim.api.nvim_buf_get_name(buf_id)
-  if path == '' then return false end
+  if path == '' then
+    return false
+  end
 
   if vim.bo[buf_id].modified then
     H.notify('buffer has unsaved changes; write it before formatting', 'WARN')
@@ -155,7 +161,13 @@ GdevFormat.format = function(buf_id, opts)
   end
 
   table.insert(argv, path)
-  vim.system(argv, { text = true }, vim.schedule_wrap(function(out) H.report(buf_id, argv, out) end))
+  vim.system(
+    argv,
+    { text = true },
+    vim.schedule_wrap(function(out)
+      H.report(buf_id, argv, out)
+    end)
+  )
   return true
 end
 
@@ -181,8 +193,12 @@ GdevFormat.get_command = function(buf_id, opts)
   local config = H.get_config(opts, buf_id)
 
   local command = config.command
-  if type(command) == 'table' then return vim.deepcopy(command) end
-  if type(command) == 'string' then return vim.split(command, '%s+', { trimempty = true }) end
+  if type(command) == 'table' then
+    return vim.deepcopy(command)
+  end
+  if type(command) == 'string' then
+    return vim.split(command, '%s+', { trimempty = true })
+  end
 
   return vim.deepcopy(H.formatter_argv[config.formatter])
 end
@@ -224,7 +240,9 @@ H.setup_config = function(config)
 end
 
 H.check_formatter = function(formatter)
-  if formatter == false or H.formatter_argv[formatter] ~= nil then return end
+  if formatter == false or H.formatter_argv[formatter] ~= nil then
+    return
+  end
   local known = vim.tbl_keys(H.formatter_argv)
   table.sort(known)
   H.error(
@@ -237,14 +255,24 @@ H.check_formatter = function(formatter)
 end
 
 H.check_command = function(command)
-  if command == nil then return end
-  if type(command) == 'string' and vim.trim(command) ~= '' then return end
-  if H.is_argv(command) then return end
-  H.error('`command` should be a non-empty string or array of strings, not ' .. vim.inspect(command))
+  if command == nil then
+    return
+  end
+  if type(command) == 'string' and vim.trim(command) ~= '' then
+    return
+  end
+  if H.is_argv(command) then
+    return
+  end
+  H.error(
+    '`command` should be a non-empty string or array of strings, not ' .. vim.inspect(command)
+  )
 end
 
 H.check_indent = function(indent)
-  if indent == false or (type(indent) == 'number' and indent > 0) then return end
+  if indent == false or (type(indent) == 'number' and indent > 0) then
+    return
+  end
   H.error('`indent` should be a positive number or `false`, not ' .. vim.inspect(indent))
 end
 
@@ -260,7 +288,10 @@ H.create_autocommands = function()
   local gr = vim.api.nvim_create_augroup('GdevFormat', {})
 
   local au = function(event, pattern, callback, desc)
-    vim.api.nvim_create_autocmd(event, { group = gr, pattern = pattern, callback = callback, desc = desc })
+    vim.api.nvim_create_autocmd(
+      event,
+      { group = gr, pattern = pattern, callback = callback, desc = desc }
+    )
   end
 
   -- Matched on filetype rather than on a `*.gd` file pattern, so a script whose
@@ -269,54 +300,81 @@ H.create_autocommands = function()
 
   -- Registered during `setup()`, hence after the bundled `gdscript` ftplugin
   -- had its say about indentation, which is what lets this override it
-  au('FileType', H.script_filetypes, function(args) H.apply_indent(args.buf) end, 'Apply Godot indent options')
+  au('FileType', H.script_filetypes, function(args)
+    H.apply_indent(args.buf)
+  end, 'Apply Godot indent options')
 end
 
 H.create_user_commands = function()
-  local format = function(_) GdevFormat.format(0) end
+  local format = function(_)
+    GdevFormat.format(0)
+  end
   vim.api.nvim_create_user_command('GdevFormat', format, { desc = 'Format the current buffer' })
 end
 
 -- Formatting -----------------------------------------------------------------
 H.on_write = function(args)
-  if not H.is_script_buffer(args.buf) then return end
-  if not H.get_config(nil, args.buf).autoformat then return end
+  if not H.is_script_buffer(args.buf) then
+    return
+  end
+  if not H.get_config(nil, args.buf).autoformat then
+    return
+  end
   GdevFormat.format(args.buf)
 end
 
 H.report = function(buf_id, argv, out)
-  if not vim.api.nvim_buf_is_valid(buf_id) then return end
+  if not vim.api.nvim_buf_is_valid(buf_id) then
+    return
+  end
 
-  if out.code ~= 0 then return H.notify(H.failure_message(argv, out), 'ERROR') end
+  if out.code ~= 0 then
+    return H.notify(H.failure_message(argv, out), 'ERROR')
+  end
 
   -- The file changed behind the buffer's back. |:checktime| is the reload that
   -- keeps undo history, marks and the cursor, and it refuses to clobber a
   -- buffer the user modified while the formatter ran.
-  vim.api.nvim_buf_call(buf_id, function() vim.cmd('checktime') end)
+  vim.api.nvim_buf_call(buf_id, function()
+    vim.cmd('checktime')
+  end)
 end
 
 H.failure_message = function(argv, out)
   -- Formatters report syntax errors on stderr and diffs on stdout, and some
   -- report nothing at all, so all three cases have to say something useful
   local reported = vim.trim(out.stderr or '')
-  if reported == '' then reported = vim.trim(out.stdout or '') end
-  if reported ~= '' then return reported end
+  if reported == '' then
+    reported = vim.trim(out.stdout or '')
+  end
+  if reported ~= '' then
+    return reported
+  end
 
   return string.format('`%s` exited with %d', argv[1], out.code)
 end
 
 H.notify_missing = function(bin)
-  if H.cache.missing[bin] then return end
+  if H.cache.missing[bin] then
+    return
+  end
   H.cache.missing[bin] = true
-  H.notify(string.format('`%s` is not executable. Run `:checkhealth gdev` for install pointers.', bin), 'WARN')
+  H.notify(
+    string.format('`%s` is not executable. Run `:checkhealth gdev` for install pointers.', bin),
+    'WARN'
+  )
 end
 
 -- Indentation ----------------------------------------------------------------
 H.apply_indent = function(buf_id)
-  if H.is_disabled() then return end
+  if H.is_disabled() then
+    return
+  end
 
   local indent = H.get_config(nil, buf_id).indent
-  if type(indent) ~= 'number' then return end
+  if type(indent) ~= 'number' then
+    return
+  end
 
   local bo = vim.bo[buf_id]
   bo.expandtab, bo.shiftwidth, bo.softtabstop, bo.tabstop = true, indent, indent, indent
@@ -324,16 +382,24 @@ end
 
 H.indent_open_buffers = function()
   for _, buf_id in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(buf_id) and H.is_script_buffer(buf_id) then H.apply_indent(buf_id) end
+    if vim.api.nvim_buf_is_loaded(buf_id) and H.is_script_buffer(buf_id) then
+      H.apply_indent(buf_id)
+    end
   end
 end
 
 -- Predicates -----------------------------------------------------------------
-H.is_script_buffer = function(buf_id) return vim.tbl_contains(H.script_filetypes, vim.bo[buf_id].filetype) end
+H.is_script_buffer = function(buf_id)
+  return vim.tbl_contains(H.script_filetypes, vim.bo[buf_id].filetype)
+end
 
 H.is_argv = function(command)
-  if not (vim.islist(command) and #command > 0) then return false end
-  return vim.iter(command):all(function(word) return type(word) == 'string' end)
+  if not (vim.islist(command) and #command > 0) then
+    return false
+  end
+  return vim.iter(command):all(function(word)
+    return type(word) == 'string'
+  end)
 end
 
 return GdevFormat

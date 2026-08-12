@@ -11,7 +11,9 @@ local new_set = MiniTest.new_set
 -- Output test set ============================================================
 local T = new_set({
   hooks = {
-    pre_case = function() child.setup() end,
+    pre_case = function()
+      child.setup()
+    end,
     post_once = child.stop,
   },
   n_retry = helpers.get_n_retry(1),
@@ -19,7 +21,9 @@ local T = new_set({
 
 T['child process'] = new_set()
 
-T['child process']['starts and evaluates Lua'] = function() eq(child.lua_get('1 + 1'), 2) end
+T['child process']['starts and evaluates Lua'] = function()
+  eq(child.lua_get('1 + 1'), 2)
+end
 
 T['child process']['has project root on runtimepath'] = function()
   -- Without this, `require('gdev.<module>')` cannot resolve inside the child
@@ -33,7 +37,9 @@ T['child process']['can resolve `gdev` namespace'] = function()
   expect.match(err, 'module .*not found')
 end
 
-T['child process']['loads mini.test'] = function() eq(child.lua_get('type(_G.MiniTest)'), 'table') end
+T['child process']['loads mini.test'] = function()
+  eq(child.lua_get('type(_G.MiniTest)'), 'table')
+end
 
 T['child process']['starts without errors'] = function()
   -- Worth a case of its own because the symptom is invisible: an error during
@@ -62,13 +68,18 @@ T['test runner'] = new_set()
 T['test runner']['loads mini.nvim from `deps`'] = function()
   -- A locally installed mini.nvim shadowing `deps/` would mean local runs and
   -- CI silently test against different versions
-  expect.match(debug.getinfo(MiniTest.run, 'S').source, vim.pesc('deps/mini.nvim/lua/mini/test.lua'))
+  expect.match(
+    debug.getinfo(MiniTest.run, 'S').source,
+    vim.pesc('deps/mini.nvim/lua/mini/test.lua')
+  )
 end
 
 T['test runner']['keeps user directories off `runtimepath`'] = function()
   local user_dirs = { vim.fn.stdpath('config'), vim.fn.stdpath('data') .. '/site' }
   local leaked = vim.tbl_filter(function(dir)
-    return vim.iter(user_dirs):any(function(user_dir) return vim.startswith(dir, user_dir) end)
+    return vim.iter(user_dirs):any(function(user_dir)
+      return vim.startswith(dir, user_dir)
+    end)
   end, vim.opt.rtp:get())
 
   eq(leaked, {})
@@ -79,7 +90,9 @@ T['helpers'] = new_set()
 T['helpers']['provide `match` expectations'] = function()
   expect.match('abcd', 'bc')
   expect.no_match('abcd', 'xy')
-  expect.error(function() expect.match('abcd', 'xy') end, 'string matching')
+  expect.error(function()
+    expect.match('abcd', 'xy')
+  end, 'string matching')
 end
 
 T['helpers']['scale timing constants in CI'] = function()

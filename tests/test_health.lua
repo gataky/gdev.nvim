@@ -22,7 +22,8 @@ local modules = { 'dap', 'docs', 'format', 'lsp', 'run', 'scenetree', 'server', 
 
 -- Fakes installed on $PATH unless a case wants one of them missing. Names map
 -- to the script in 'tests/dir-health/bin' that answers for them.
-local all_fakes = { nc = 'nc', godot = 'godot', curl = 'present', ['gdscript-formatter'] = 'present' }
+local all_fakes =
+  { nc = 'nc', godot = 'godot', curl = 'present', ['gdscript-formatter'] = 'present' }
 
 -- Helpers with child processes ===============================================
 local install_harness = function()
@@ -87,7 +88,9 @@ local install_harness = function()
   )
 end
 
-local set_path = function(fakes) child.lua('_G.set_path(...)', { fakes or all_fakes }) end
+local set_path = function(fakes)
+  child.lua('_G.set_path(...)', { fakes or all_fakes })
+end
 
 local set_path_without = function(name)
   local fakes = vim.deepcopy(all_fakes)
@@ -95,17 +98,25 @@ local set_path_without = function(name)
   child.lua('_G.set_path(...)', { fakes })
 end
 
-local set_env = function(vars) child.lua('for k, v in pairs(...) do vim.env[k] = v end', { vars }) end
+local set_env = function(vars)
+  child.lua('for k, v in pairs(...) do vim.env[k] = v end', { vars })
+end
 
-local setup_modules = function(configs) child.lua('_G.setup(...)', { configs or {} }) end
+local setup_modules = function(configs)
+  child.lua('_G.setup(...)', { configs or {} })
+end
 
-local report = function() return child.lua_get('_G.report()') end
+local report = function()
+  return child.lua_get('_G.report()')
+end
 
 -- Report assertions ==========================================================
 local matching = function(calls, level, pattern)
   local found = {}
   for _, call in ipairs(calls) do
-    if call.level == level and call.msg:find(pattern) ~= nil then table.insert(found, call) end
+    if call.level == level and call.msg:find(pattern) ~= nil then
+      table.insert(found, call)
+    end
   end
   return found
 end
@@ -118,19 +129,29 @@ local describe_report = function(calls)
   return table.concat(lines, '\n')
 end
 
-local expect_finding = MiniTest.new_expectation(
-  'health finding',
-  function(calls, level, pattern) return #matching(calls, level, pattern) == 1 end,
-  function(calls, level, pattern)
-    return string.format('Exactly one %s matching %s\nReport:\n%s', level, vim.inspect(pattern), describe_report(calls))
-  end
-)
+local expect_finding = MiniTest.new_expectation('health finding', function(calls, level, pattern)
+  return #matching(calls, level, pattern) == 1
+end, function(calls, level, pattern)
+  return string.format(
+    'Exactly one %s matching %s\nReport:\n%s',
+    level,
+    vim.inspect(pattern),
+    describe_report(calls)
+  )
+end)
 
 local expect_no_finding = MiniTest.new_expectation(
   'no health finding',
-  function(calls, level, pattern) return #matching(calls, level, pattern) == 0 end,
   function(calls, level, pattern)
-    return string.format('No %s matching %s\nReport:\n%s', level, vim.inspect(pattern), describe_report(calls))
+    return #matching(calls, level, pattern) == 0
+  end,
+  function(calls, level, pattern)
+    return string.format(
+      'No %s matching %s\nReport:\n%s',
+      level,
+      vim.inspect(pattern),
+      describe_report(calls)
+    )
   end
 )
 
@@ -142,7 +163,9 @@ end
 local titles_of = function(calls)
   local titles = {}
   for _, call in ipairs(calls) do
-    if call.level == 'start' then table.insert(titles, call.msg) end
+    if call.level == 'start' then
+      table.insert(titles, call.msg)
+    end
   end
   return titles
 end
@@ -169,7 +192,9 @@ T['check()']['reports every section'] = function()
   eq(titles_of(report()), section_titles)
 end
 
-T['check()']['reports every section without any module set up'] = function() eq(titles_of(report()), section_titles) end
+T['check()']['reports every section without any module set up'] = function()
+  eq(titles_of(report()), section_titles)
+end
 
 T['check()']['reports modules that were never set up'] = function()
   local calls = report()
@@ -267,7 +292,11 @@ T['Godot']['reports the project root'] = function()
   setup_modules()
   child.lua([[vim.fn.chdir('tests/dir-health/project')]])
 
-  expect_finding(report(), 'info', vim.pesc('Project root: ') .. '.*' .. vim.pesc('dir-health/project'))
+  expect_finding(
+    report(),
+    'info',
+    vim.pesc('Project root: ') .. '.*' .. vim.pesc('dir-health/project')
+  )
 end
 
 T['Godot']['reports no project root outside a project'] = function()
@@ -368,7 +397,11 @@ T['Editor server']['warns when nothing is listening'] = function()
   setup_modules({ server = { address = '/tmp/gdev-health-not-listening' } })
 
   local calls = report()
-  expect_finding(calls, 'warn', vim.pesc('Neovim is not listening on /tmp/gdev-health-not-listening'))
+  expect_finding(
+    calls,
+    'warn',
+    vim.pesc('Neovim is not listening on /tmp/gdev-health-not-listening')
+  )
   expect.match(advice_of(calls, 'warn', 'not listening'), 'GdevServerStart')
 end
 
@@ -470,7 +503,11 @@ T['Godot class reference']['reports renderer, source and cache'] = function()
 
   local calls = report()
   expect_finding(calls, 'info', vim.pesc('Renderer: float (fallback: browser)'))
-  expect_finding(calls, 'info', vim.pesc('Source: https://raw.githubusercontent.com/godotengine/godot-docs/master'))
+  expect_finding(
+    calls,
+    'info',
+    vim.pesc('Source: https://raw.githubusercontent.com/godotengine/godot-docs/master')
+  )
   expect_finding(calls, 'info', vim.pesc('Website: https://docs.godotengine.org/en/stable'))
   expect_finding(calls, 'info', vim.pesc('Cache: 0 of 64 pages'))
   expect_finding(calls, 'ok', vim.pesc("'curl' found"))
@@ -481,7 +518,11 @@ T['Godot class reference']['warns about a missing fetcher'] = function()
   set_path_without('curl')
 
   local calls = report()
-  expect_finding(calls, 'warn', vim.pesc("'curl' not found, so the 'float' renderer cannot fetch a page"))
+  expect_finding(
+    calls,
+    'warn',
+    vim.pesc("'curl' not found, so the 'float' renderer cannot fetch a page")
+  )
   expect_no_finding(calls, 'ok', 'curl')
 end
 
@@ -506,7 +547,11 @@ T['Scene tree']['warns about Nerd Font icons'] = function()
 
   local calls = report()
   expect_finding(calls, 'info', vim.pesc('Node icons: nerdfont'))
-  expect_finding(calls, 'warn', vim.pesc('Node icons are Nerd Font glyphs, which need a patched font'))
+  expect_finding(
+    calls,
+    'warn',
+    vim.pesc('Node icons are Nerd Font glyphs, which need a patched font')
+  )
   expect.match(advice_of(calls, 'warn', 'Nerd Font'), vim.pesc('icons = "ascii"'))
 end
 

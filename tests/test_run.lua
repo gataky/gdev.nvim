@@ -5,8 +5,12 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('run', config) end
-local unload_module = function() child.gdev_unload('run') end
+local load_module = function(config)
+  child.gdev_load('run', config)
+end
+local unload_module = function()
+  child.gdev_unload('run')
+end
 
 -- Time constants scaled for CI (see `helpers.get_time_const`)
 local wait_timeout = helpers.get_time_const(5000)
@@ -72,9 +76,15 @@ local install_fixtures = function()
   ]])
 end
 
-local root = function() return child.lua_get('_G.root') end
-local argv = function(...) return vim.list_extend({ 'godot', '--path', root() }, { ... }) end
-local wait_for_exit = function() wait_for('_G.console_text():find("[exited]", 1, true) ~= nil') end
+local root = function()
+  return child.lua_get('_G.root')
+end
+local argv = function(...)
+  return vim.list_extend({ 'godot', '--path', root() }, { ... })
+end
+local wait_for_exit = function()
+  wait_for('_G.console_text():find("[exited]", 1, true) ~= nil')
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -113,7 +123,10 @@ T['setup()']['creates `config` field'] = function()
   eq(child.lua_get('GdevRun.config.console.enabled'), false)
   eq(child.lua_get('GdevRun.config.console.renderer'), 'buffer')
   eq(child.lua_get('GdevRun.config.console.buffer'), { position = 'bottom', size = 0.3 })
-  eq(child.lua_get('GdevRun.config.console.float'), { width = 0.8, height = 0.25, border = 'rounded' })
+  eq(
+    child.lua_get('GdevRun.config.console.float'),
+    { width = 0.8, height = 0.25, border = 'rounded' }
+  )
 end
 
 T['setup()']['respects `config` argument'] = function()
@@ -121,7 +134,12 @@ T['setup()']['respects `config` argument'] = function()
   load_module({
     godot = '/opt/godot',
     script_extensions = { 'gd', 'cs' },
-    console = { enabled = true, renderer = 'float', buffer = { position = 'right' }, float = { border = 'single' } },
+    console = {
+      enabled = true,
+      renderer = 'float',
+      buffer = { position = 'right' },
+      float = { border = 'single' },
+    },
   })
 
   eq(child.lua_get('GdevRun.config.godot'), '/opt/godot')
@@ -136,7 +154,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -149,7 +169,11 @@ T['setup()']['validates `config` argument'] = function()
   expect_config_error({ console = { renderer = 1 } }, 'console.renderer', 'buffer')
 
   expect_config_error({ console = { buffer = 'a' } }, 'console.buffer', 'table')
-  expect_config_error({ console = { buffer = { position = 'top' } } }, 'console.buffer.position', 'bottom')
+  expect_config_error(
+    { console = { buffer = { position = 'top' } } },
+    'console.buffer.position',
+    'bottom'
+  )
   expect_config_error({ console = { buffer = { size = 'a' } } }, 'console.buffer.size', 'number')
   expect_config_error({ console = { buffer = { size = 0 } } }, 'console.buffer.size', 'number')
   expect_config_error({ console = { buffer = { size = 1.5 } } }, 'console.buffer.size', 'number')
@@ -178,7 +202,10 @@ T['status()']['reports a missing executable'] = function()
   load_module({ godot = 'gdev-no-such-godot' })
   child.lua('_G.open("Main.tscn")')
 
-  eq(child.lua_get('GdevRun.status()'), { root = root(), godot = 'gdev-no-such-godot', executable = false })
+  eq(
+    child.lua_get('GdevRun.status()'),
+    { root = root(), godot = 'gdev-no-such-godot', executable = false }
+  )
 end
 
 T['status()']['omits a root it cannot find'] = function()
@@ -296,7 +323,10 @@ T['run_project()']['reports a failed run'] = new_set({
   },
 }, {
   test = function(stderr, pattern)
-    child.lua('vim.env.GDEV_RUN_EXIT = "2"; vim.env.GDEV_RUN_STDERR = ...; _G.open("Main.tscn")', { stderr })
+    child.lua(
+      'vim.env.GDEV_RUN_EXIT = "2"; vim.env.GDEV_RUN_STDERR = ...; _G.open("Main.tscn")',
+      { stderr }
+    )
 
     eq(child.lua_get('GdevRun.run_project()'), true)
     wait_for('#_G.notifications > 0')
@@ -364,7 +394,11 @@ T['run_scene()']['accepts every spelling of a scene inside the project'] = new_s
 })
 
 T['run_scene()']['rejects a scene outside the project'] = new_set({
-  parametrize = { { '"../outside.tscn"' }, { '"res://../outside.tscn"' }, { '"/tmp/outside.tscn"' } },
+  parametrize = {
+    { '"../outside.tscn"' },
+    { '"res://../outside.tscn"' },
+    { '"/tmp/outside.tscn"' },
+  },
 }, {
   test = function(argument)
     child.lua('_G.open("Main.tscn")')
@@ -376,8 +410,12 @@ T['run_scene()']['rejects a scene outside the project'] = new_set({
 })
 
 T['run_scene()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevRun.run_scene(1)') end, vim.pesc('`scene` should be string'))
-  expect.error(function() child.lua('GdevRun.run_scene()') end, vim.pesc('`scene` should be string'))
+  expect.error(function()
+    child.lua('GdevRun.run_scene(1)')
+  end, vim.pesc('`scene` should be string'))
+  expect.error(function()
+    child.lua('GdevRun.run_scene()')
+  end, vim.pesc('`scene` should be string'))
 end
 
 T['run_scene()']['respects `opts` argument'] = function()
@@ -436,7 +474,10 @@ T['run_current_scene()']['asks which scene when several use the script'] = funct
   eq(child.lua_get('GdevRun.run_current_scene()'), true)
   wait_for('#_G.argv() > 0')
 
-  eq(child.lua_get('_G.selected.items'), { 'res://Main.tscn', 'res://scenes/Menu.tscn', 'res://world.tscn' })
+  eq(
+    child.lua_get('_G.selected.items'),
+    { 'res://Main.tscn', 'res://scenes/Menu.tscn', 'res://world.tscn' }
+  )
   expect.match(child.lua_get('_G.selected.prompt'), 'res://scripts/player%.gd')
   eq(child.lua_get('_G.argv()'), argv('res://scenes/Menu.tscn'))
 end
@@ -462,7 +503,10 @@ T['run_current_scene()']['reports a buffer that is neither'] = function()
   child.lua('_G.open("project.godot")')
 
   eq(child.lua_get('GdevRun.run_current_scene()'), false)
-  expect.match(child.lua_get('_G.last_message()'), 'project%.godot is neither a scene nor a Godot script')
+  expect.match(
+    child.lua_get('_G.last_message()'),
+    'project%.godot is neither a scene nor a Godot script'
+  )
 end
 
 T['run_current_scene()']['reports a buffer with no file'] = function()
@@ -649,7 +693,10 @@ T['console']['reports the exit status'] = function()
   child.lua('GdevRun.run_project()')
   wait_for_exit()
 
-  eq(child.lua_get('_G.console_lines()')[#child.lua_get('_G.console_lines()')], '[exited] code=3 signal=0')
+  eq(
+    child.lua_get('_G.console_lines()')[#child.lua_get('_G.console_lines()')],
+    '[exited] code=3 signal=0'
+  )
 
   -- A captured failure is shown, not also notified
   eq(child.lua_get('_G.notifications'), {})
@@ -665,7 +712,10 @@ T['console']['starts each run from a clean buffer'] = function()
   wait_for('_G.console_text():find("second", 1, true) ~= nil')
 
   expect.no_match(child.lua_get('_G.console_text()'), 'first')
-  eq(child.lua_get('_G.console_lines()')[1], 'Command: godot --path ' .. root() .. ' res://scenes/Level.tscn')
+  eq(
+    child.lua_get('_G.console_lines()')[1],
+    'Command: godot --path ' .. root() .. ' res://scenes/Level.tscn'
+  )
 end
 
 T['console']['refuses a second run while one is going'] = function()
@@ -772,7 +822,11 @@ end
 T['console']['respects `config.console.float`'] = function()
   unload_module()
   load_module({
-    console = { enabled = true, renderer = 'float', float = { width = 0.5, height = 0.5, border = 'single' } },
+    console = {
+      enabled = true,
+      renderer = 'float',
+      float = { width = 0.5, height = 0.5, border = 'single' },
+    },
   })
   child.lua('_G.open("Main.tscn")')
 

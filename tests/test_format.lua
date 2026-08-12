@@ -5,8 +5,12 @@ local expect, eq = helpers.expect, helpers.expect.equality
 local new_set = MiniTest.new_set
 
 -- Helpers with child processes
-local load_module = function(config) child.gdev_load('format', config) end
-local unload_module = function() child.gdev_unload('format') end
+local load_module = function(config)
+  child.gdev_load('format', config)
+end
+local unload_module = function()
+  child.gdev_unload('format')
+end
 
 -- Time constants scaled for CI (see `helpers.get_time_const`)
 local wait_timeout = helpers.get_time_const(2000)
@@ -58,7 +62,9 @@ local install_fakes = function()
   ]])
 end
 
-local formatted_by = function(name) return { 'extends Node', '# formatted by ' .. name } end
+local formatted_by = function(name)
+  return { 'extends Node', '# formatted by ' .. name }
+end
 
 -- Output test set ============================================================
 local T = new_set({
@@ -99,7 +105,12 @@ end
 
 T['setup()']['respects `config` argument'] = function()
   unload_module()
-  load_module({ formatter = 'gdformat', command = { 'gdev-fake-formatter' }, autoformat = false, indent = 2 })
+  load_module({
+    formatter = 'gdformat',
+    command = { 'gdev-fake-formatter' },
+    autoformat = false,
+    indent = 2,
+  })
 
   eq(child.lua_get('GdevFormat.config.formatter'), 'gdformat')
   eq(child.lua_get('GdevFormat.config.command'), { 'gdev-fake-formatter' })
@@ -111,7 +122,9 @@ T['setup()']['validates `config` argument'] = function()
   unload_module()
 
   local expect_config_error = function(config, name, target_type)
-    expect.error(function() load_module(config) end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
+    expect.error(function()
+      load_module(config)
+    end, vim.pesc(name) .. '.*' .. vim.pesc(target_type))
   end
 
   expect_config_error('a', 'config', 'table')
@@ -217,7 +230,9 @@ T['get_command()']['respects `vim.b.gdevformat_config`'] = function()
 end
 
 T['get_command()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevFormat.get_command("a")') end, '`buf_id`.*valid buffer id')
+  expect.error(function()
+    child.lua('GdevFormat.get_command("a")')
+  end, '`buf_id`.*valid buffer id')
 end
 
 T['get_command()']['keeps answering while disabled'] = new_set({
@@ -240,7 +255,10 @@ T['format()']['works'] = function()
 
   -- The formatter rewrote the file and the buffer picked the result up
   eq(child.get_lines(), formatted_by('gdscript-formatter'))
-  eq(child.lua_get('_G.argv()'), { 'gdscript-formatter', '--reorder-code', child.lua_get('_G.path') })
+  eq(
+    child.lua_get('_G.argv()'),
+    { 'gdscript-formatter', '--reorder-code', child.lua_get('_G.path') }
+  )
   eq(child.lua_get('_G.notifications'), {})
 end
 
@@ -254,7 +272,10 @@ T['format()']['works on a non-current buffer'] = function()
   eq(child.lua_get('GdevFormat.format(_G.buf)'), true)
   wait_for('#vim.api.nvim_buf_get_lines(_G.buf, 0, -1, false) > 1')
 
-  eq(child.lua_get('vim.api.nvim_buf_get_lines(_G.buf, 0, -1, false)'), formatted_by('gdscript-formatter'))
+  eq(
+    child.lua_get('vim.api.nvim_buf_get_lines(_G.buf, 0, -1, false)'),
+    formatted_by('gdscript-formatter')
+  )
 end
 
 T['format()']['respects `opts` argument'] = function()
@@ -270,7 +291,10 @@ end
 T['format()']['runs a `command` list verbatim'] = function()
   child.lua('_G.path = _G.new_script()')
 
-  eq(child.lua_get('GdevFormat.format(0, { command = { "gdev-fake-formatter", "--check" } })'), true)
+  eq(
+    child.lua_get('GdevFormat.format(0, { command = { "gdev-fake-formatter", "--check" } })'),
+    true
+  )
   wait_for('#_G.argv() > 0')
 
   eq(child.lua_get('_G.argv()'), { 'gdev-fake-formatter', '--check', child.lua_get('_G.path') })
@@ -369,7 +393,9 @@ T['format()']['ignores buffers with no file'] = function()
 end
 
 T['format()']['validates arguments'] = function()
-  expect.error(function() child.lua('GdevFormat.format("a")') end, '`buf_id`.*valid buffer id')
+  expect.error(function()
+    child.lua('GdevFormat.format("a")')
+  end, '`buf_id`.*valid buffer id')
 end
 
 T['format()']['respects `vim.b.gdevformat_config`'] = function()
@@ -407,7 +433,10 @@ T['BufWritePost']['formats Godot scripts on save'] = function()
   wait_for('vim.api.nvim_buf_get_lines(0, 1, 2, false)[1] ~= "var x = 1"')
 
   eq(child.get_lines(), formatted_by('gdscript-formatter'))
-  eq(child.lua_get('_G.argv()'), { 'gdscript-formatter', '--reorder-code', child.lua_get('_G.path') })
+  eq(
+    child.lua_get('_G.argv()'),
+    { 'gdscript-formatter', '--reorder-code', child.lua_get('_G.path') }
+  )
 end
 
 T['BufWritePost']['respects `config.autoformat`'] = function()
@@ -467,7 +496,10 @@ T[':GdevFormat']['works when `autoformat` is off'] = function()
   wait_for('#vim.api.nvim_buf_get_lines(0, 0, -1, false) > 1')
 
   eq(child.get_lines(), formatted_by('gdscript-formatter'))
-  eq(child.lua_get('_G.argv()'), { 'gdscript-formatter', '--reorder-code', child.lua_get('_G.path') })
+  eq(
+    child.lua_get('_G.argv()'),
+    { 'gdscript-formatter', '--reorder-code', child.lua_get('_G.path') }
+  )
 end
 
 T['FileType'] = new_set()
