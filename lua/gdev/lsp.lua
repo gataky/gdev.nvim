@@ -27,8 +27,11 @@
 ---
 --- # Requirements ~
 ---
---- The Godot editor has to be running with its language server enabled (Editor
---- Settings > Network > Language Server).
+--- The Godot editor has to be running, with the project open. Its language
+--- server is always on in Godot 4 — there is no switch to enable, only
+--- `remote_host` and `remote_port` under Editor Settings > Network > Language
+--- Server, which have to match `host` and `port` here. Advice to "enable the TCP
+--- LSP server" is left over from Godot 3 and does not apply.
 ---
 --- The server is registered under the `gdscript` |lsp-config| name, replacing
 --- any config already using it (one from 'nvim-lspconfig', say). Sharing the
