@@ -729,21 +729,85 @@ the exact Godot `Exec Flags` recipe, and the two genuinely missing treesitter pa
 
 ## Phase 10 — umbrella entry, docs, release polish
 
-- [ ] `lua/gdev/init.lua`: optional convenience `require('gdev').setup({ lsp = {...},
+- [x] `lua/gdev/init.lua`: optional convenience `require('gdev').setup({ lsp = {...},
       run = {...}, … })` forwarding each sub-table to the module's `setup()`; a module key set
       to `false` is skipped; omitted keys get defaults. Shared values (host/ports/godot path)
       stay per-module — the umbrella just forwards. Keep this thin; per-module setup remains
       the primary documented API (mini.nvim style).
-- [ ] README.md: feature overview, requirements, install (lazy.nvim + `vim.pack`), quickstart,
+- [x] README.md: feature overview, requirements, install (lazy.nvim + `vim.pack`), quickstart,
       full annotated config example, per-feature sections (port the *content ideas* — external
       editor setup guide, Godot editor settings recommendations, multiple-Godot-versions
       guidance, hiding `.godot`/`.uid`/`.import` in file explorers — written fresh).
-- [ ] `make gendoc` output committed; help tags resolve (`:h gdev`, `:h gdev.run`, …).
-- [ ] Manual integration pass against a real Godot 4 project (LSP attach, debug launch, run
-      with console, scene tree, docs float, format on save, `:checkhealth gdev`) — record
-      results in the PR/commit message.
-- [ ] Optional dev nicety: `plugin/dev-reload` equivalent gated behind
-      `vim.g.gdev_dev_reload` (see reference `plugin/dev-reload.lua`).
+- [x] `make gendoc` output committed; help tags resolve (25 tags checked with `:helptags` +
+      `:help <tag>`; highlight groups are prose and untagged, as in mini.nvim).
+- [x] Integration pass against real Godot 4.7.1 — **partially done, see the Phase 10 outcome for
+      the list of what is still unproven.** A real LSP session, a real headless engine run, the
+      external-editor recipe, format-on-save, the DAP handshake and `:checkhealth gdev` were all
+      verified against a live editor. A windowed debug session, Godot actually opening a file, a
+      real GDScript formatter, the browser renderer and Neovim 0.11 were not.
+- [x] Optional dev nicety: `plugin/gdev-dev-reload.lua`, gated behind `vim.g.gdev_dev_reload`.
+      Resolves the repository root from `debug.getinfo` rather than the reference's hardcoded
+      `~/Repositories/`, and captures live configs before dropping the module cache so user
+      settings survive a reload.
+
+**Phase 10 outcome (done).** `lua/gdev/init.lua` (umbrella), `README.md`,
+`plugin/gdev-dev-reload.lua`, `LICENSE`. The umbrella returns the list of modules it set up; a key
+may be a table (forwarded), `true` (defaults), `false` (skipped) or omitted (defaults), and an
+**unknown key is an error** naming the valid ones — a `treesiter` typo would otherwise be silently
+inert. `csharp` is accepted, warned about as reserved, and ignored. Like `health.lua`, it does not
+use `gdev.util`: it has no config, no buffer-local override and no disable protocol.
+
+### Integration pass against real Godot 4.7.1 — what is actually proven
+
+Verified live, against a running editor on 127.0.0.1:6005/6006:
+
+- **A real LSP session** — the project's first. A client attached over TCP with `root_dir` from
+  `project.godot`, and `textDocument/completion` on `position.` returned 50 real `Vector2` members.
+  Phase 1's correction confirmed in the wild: `supports_method('textDocument/typeDefinition')` is
+  `false` after `on_attach` clears the server flag.
+- **New fact: Godot 4.7.1 advertises no `inlayHintProvider`**, so `toggle_inlay_hints()` warns and
+  returns `nil`. The `inlay_hints = false` default is right for reasons beyond caution.
+- **A real engine run** via a `--headless --quit` wrapper: argv came out exactly
+  `<godot> --path <root> [res://scene]`, the console captured the 4.7.1 banner, the scene's own
+  `print()` and `[exited] code=0`. `res://../elsewhere.tscn` was refused, launching nothing.
+- **The external-editor recipe, with two real Neovim processes.** `--server <sock> --remote file`
+  works; adding Godot's `{line}` as `+3` produces buffers `file,+3` with the cursor still on line 1
+  — the Phase 5 trap reproduced exactly. `--remote-send` and the README's wrapper both work.
+- Format-on-save through a real external process; the DAP `initialize` handshake against the live
+  editor; `:checkhealth gdev` both fully set up and not set up at all; treesitter against this
+  machine's real parser directory.
+
+**Not proven, and worth knowing before trusting this in anger:** a windowed debug session
+(breakpoints, stepping, `nvim-dap-ui`); Godot actually opening a file after a click, and terminal
+raising in any specific terminal; a real GDScript formatter (neither is installed here, so
+`--reorder-code` and the real stderr path are fixture-only); the detached windowed run path; Nerd
+Font glyph rendering; the `browser` renderer (`vim.ui.open` never fired for real); and **Neovim
+0.11** — only 0.12.4 exists on this machine, so CI's 0.11.7 job is the only evidence there.
+
+### Two defects found and fixed after the phase
+
+- **`gdev.lsp`'s header was wrong.** It told users to enable the language server under Editor
+  Settings > Network > Language Server. Godot 4 has no such switch — checked against a real
+  `editor_settings-4.7.tres`, which holds only `remote_host`, `remote_port`,
+  `enable_smart_resolve`, `show_native_symbols_in_editor`, `use_thread` and `poll_limit_usec`. The
+  advice is inherited from Godot 3, where the switch was real. Also note the debug-adapter port is
+  *not* an `EditorSettings` property at all (registered at runtime, defaults to 6006), and the
+  adjacent `network/debug/remote_port` is the game↔editor port — easy to confuse.
+- **No `LICENSE` file existed**, though every module header and the README declared MIT. Added,
+  matching the headers' copyright line.
+
+### Infrastructure facts for anyone extending this
+
+- **`plugin/*.lua` *is* sourced in every mini.test child.** mini.test starts children with
+  `--clean -n`, which does *not* imply `--noplugin`, and `minimal_init.lua` appends cwd to
+  `'runtimepath'` before plugins load. Any `plugin/` script must no-op when its gate is off, and
+  `--cmd` is the only startup hook early enough to set that gate for a child (`-c` runs after).
+- **Lua long-bracket trap with a nasty failure mode:** `[[package.loaded['x']]]` closes at the
+  first `]]`, so the test file fails to parse, zero cases are collected, and headless Neovim
+  *hangs* rather than failing (the Phase 0 note). Use `[=[...]=]` whenever a snippet ends in `']`.
+- Modules export their global *before* validating config (template order), so a bad sub-table
+  leaves `_G.Gdev<Name>` present holding defaults. The honest "was it set up" signal is whether the
+  user commands exist.
 
 ---
 
@@ -790,4 +854,5 @@ Every user-visible capability of godotdev.nvim minus C#:
       bundled gdscript ftplugin already does it, and the reference only documented its own.
 - [x] `:checkhealth gdev` covering all of the above (eight sections; verified against this
       machine, not just fixtures)
-- [ ] README + vimdoc parity with the reference's documented workflows
+- [x] README + vimdoc parity with the reference's documented workflows (minus its claims that
+      are wrong for Godot 4 — see the Phase 10 outcome)
