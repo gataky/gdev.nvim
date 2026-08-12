@@ -1,0 +1,6 @@
+; Minimal Godot project, here only so health has a root to report.
+config_version=5
+
+[application]
+
+config/name="gdev health"

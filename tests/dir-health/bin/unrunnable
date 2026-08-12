@@ -1,0 +1,6 @@
+#!/nonexistent/interpreter
+# Executable, and still impossible to spawn: `vim.system()` raises ENOENT for
+# the missing interpreter, where `executable()` sees only the execute bit. A
+# `godot` wrapper whose interpreter is not installed is the realistic form of
+# this, and health has to survive it rather than abort the whole report.
+print("unreachable")
