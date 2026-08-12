@@ -1,3 +1,103 @@
+*gdev.dap* Godot debug adapter
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                       *GdevDap*
+Features:
+- Registers the debug adapter built into the Godot editor with 'nvim-dap',
+  plus a "Launch scene" configuration for GDScript buffers, so `:DapContinue`
+  in a `.gd` file starts the project under the debugger.
+- Opens and closes 'nvim-dap-ui' along with the debug session, when that
+  plugin is installed.
+- Degrades instead of failing: with 'nvim-dap' absent, `setup()` warns and
+  leaves the editor untouched.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.dap').setup({})` (replace `{}`
+with your `config` table). It will create global Lua table `GdevDap` which
+you can use for scripting or manually (with `:lua GdevDap.*`).
+
+See |GdevDap.config| for `config` structure and default values.
+
+Everything here happens during `setup()`: the whole config is consumed to
+register adapter, configurations and listeners, and nothing reads it again
+afterwards. There is consequently no `vim.b.gdevdap_config` — a debug session
+belongs to a project, not to a buffer. Change something by calling `setup()`
+again, which replaces the previous registration rather than adding to it.
+
+# Requirements ~
+
+'mfussenegger/nvim-dap' has to be installed and loadable by the time
+`setup()` runs. If your plugin manager loads it lazily, make it a dependency
+of this plugin, or the registration will be skipped with a warning.
+
+Godot's debug adapter is part of the running editor, so the editor has to be
+open for a session to connect. Its port is Editor Settings > Network > Debug
+Adapter > Remote Port, and has to match `config.port`.
+
+'rcarriga/nvim-dap-ui' is optional. When installed, it is opened and closed
+with the session. Setting it up stays yours to do: calling
+`require('dapui').setup()` from here would quietly replace the configuration
+you gave it.
+
+# Debug configurations ~
+
+The default `dap.configurations.gdscript` holds one entry, "Launch scene",
+which starts the project in `${workspaceFolder}` and debugs the scene
+currently open in the editor. Pass `config.configurations` to replace it —
+with a `project` pointing elsewhere, say, or several entries to pick from.
+
+Registration overwrites `dap.configurations.gdscript` wholesale, so entries
+from a `launch.json` loaded by |dap-launch.json| have to be re-loaded after
+this `setup()`, not before it.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevdap_disable` (globally) or `vim.b.gdevdap_disable`
+(for a buffer) to `true`. This stops 'nvim-dap-ui' being opened for new
+sessions; the adapter itself stays registered, since unregistering it would
+break a session already running under it.
+
+------------------------------------------------------------------------------
+                                                               *GdevDap.setup()*
+                           `GdevDap.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevDap.config|.
+
+Usage ~
+>lua
+  require('gdev.dap').setup() -- use default config
+  -- OR
+  require('gdev.dap').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                                *GdevDap.config*
+                                `GdevDap.config`
+Defaults ~
+>lua
+  GdevDap.config = {
+    -- Host the Godot editor's debug adapter listens on
+    host = '127.0.0.1',
+
+    -- Port of that adapter, matching Editor Settings > Network > Debug Adapter
+    port = 6006,
+
+    -- Whether to open and close 'nvim-dap-ui' with the debug session. Has no
+    -- effect when that plugin is not installed.
+    dapui = true,
+
+    -- Array of nvim-dap configurations replacing the built-in "Launch scene" one.
+    -- `nil` keeps the default; see |GdevDap| for its contents.
+    configurations = nil,
+  }
+<
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.lsp* Godot editor language server
 
 MIT License Copyright (c) 2026 gdev.nvim authors

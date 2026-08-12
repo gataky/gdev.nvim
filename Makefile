@@ -7,7 +7,7 @@ NVIM_EXEC ?= nvim
 all: test lint
 
 # Run tests for all modules
-test: deps/mini.nvim
+test: deps/mini.nvim deps/nvim-dap
 	for nvim_exec in $(NVIM_EXEC); do \
 		printf "\n======\n\n" ; \
 		$$nvim_exec --version | head -n 1 && echo '' ; \
@@ -16,7 +16,7 @@ test: deps/mini.nvim
 	done
 
 # Run tests for a single module, e.g. `make test_lsp` for 'tests/test_lsp.lua'
-test_%: deps/mini.nvim
+test_%: deps/mini.nvim deps/nvim-dap
 	for nvim_exec in $(NVIM_EXEC); do \
 		printf "\n======\n\n" ; \
 		$$nvim_exec --version | head -n 1 && echo '' ; \
@@ -42,6 +42,13 @@ lint:
 deps/mini.nvim:
 	@mkdir -p deps
 	git clone --filter=blob:none https://github.com/nvim-mini/mini.nvim $@
+
+# Test dependency of 'gdev.dap' only. Deliberately kept off the 'runtimepath'
+# that 'scripts/minimal_init.lua' builds: tests that want it add it to the child
+# themselves, which leaves the "nvim-dap is not installed" path testable.
+deps/nvim-dap:
+	@mkdir -p deps
+	git clone --filter=blob:none https://github.com/mfussenegger/nvim-dap $@
 
 clean-deps:
 	rm -rf deps
