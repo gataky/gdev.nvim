@@ -212,6 +212,154 @@ Return ~
 
 ==============================================================================
 ------------------------------------------------------------------------------
+*gdev.server* Neovim server for Godot's external editor
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                    *GdevServer*
+Features:
+- Makes this Neovim reachable at a fixed address, so clicking a script in
+  the Godot editor opens it here instead of in a new instance. See
+  |GdevServer.start()|.
+- Resolves that address from the command argument, the config, the address
+  Neovim already listens on, or a documented default, in that order.
+- Recovers an address whose socket file a crashed Neovim left behind, and
+  refuses to fight over one a live process still answers on.
+- Reports the resolved address and whether it is live through
+  |GdevServer.status()|, which is what you paste into Godot's settings.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.server').setup({})` (replace
+`{}` with your `config` table). It will create global Lua table `GdevServer`
+which you can use for scripting or manually (with `:lua GdevServer.*`).
+
+See |GdevServer.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevserver_config` which should have same structure as
+`GdevServer.config`.
+
+# Godot side ~
+
+In Godot: Editor Settings > Text Editor > External > `Use External Editor`,
+with `Exec Path` pointing at Neovim (or at a wrapper script that also
+raises your terminal) and `Exec Flags` substituting the clicked script: >
+
+  --server /tmp/godot.nvim --remote {file}
+<
+`--server` is what decides which Neovim receives the file, so the address
+there and the one this module listens on have to be the same string.
+`:lua = GdevServer.status()` prints the one in effect.
+
+Godot also offers `{line}` and `{col}`, but `--remote` takes everything
+after it as file names and would open a buffer called `+12`. Placing the
+cursor needs `--remote-send`, or a wrapper script — which is where the
+terminal-raising belongs anyway.
+
+# Addresses ~
+
+An address with a colon is a `host:port` pair; anything else is the path of
+a Unix domain socket. Only socket paths can go stale, since only they leave
+a file behind. See |serverstart()| for the full grammar.
+
+Neovim always listens on an address of its own (|v:servername|), generated
+at startup. Starting a server here adds a second address rather than
+replacing that one, which is the point: `/tmp/godot.nvim` is stable enough
+to hard-code into Godot's settings, while the generated one changes every
+session.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevserver_disable` (globally) or
+`vim.b.gdevserver_disable` (for a buffer) to `true`.
+
+------------------------------------------------------------------------------
+                                                            *GdevServer.setup()*
+                          `GdevServer.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevServer.config|.
+
+Usage ~
+>lua
+  require('gdev.server').setup() -- use default config
+  -- OR
+  require('gdev.server').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                             *GdevServer.config*
+                              `GdevServer.config`
+Defaults ~
+>lua
+  GdevServer.config = {
+    -- Address to listen on: a socket path, or `host:port` for TCP. `nil` means
+    -- the address Neovim generated for itself at startup (|v:servername|), which
+    -- is different every session — set this to something stable, matching what
+    -- Godot's `Exec Flags` pass to `--server`.
+    address = nil,
+
+    -- Whether to start the server during `setup()` and when a Godot buffer is
+    -- opened. Off by default: listening is a side effect worth opting into.
+    autostart = false,
+
+    -- Whether to remove a socket file left behind by a crashed Neovim. Only
+    -- applies when nothing answers on it; a live address is never touched.
+    remove_stale_socket = true,
+
+    -- Filetypes whose buffers trigger `autostart`. Replaces this list rather
+    -- than adding to it.
+    filetypes = { 'gdscript', 'gdshader', 'gdresource' },
+  }
+<
+------------------------------------------------------------------------------
+                                                            *GdevServer.start()*
+                         `GdevServer.start`({address})
+Start listening for Godot
+
+Resolves the address (see |GdevServer.config|) and hands it to
+|serverstart()|. Reports what happened through |vim.notify()| in every case,
+because the address is the one thing the user has to mirror in Godot's
+settings.
+
+Four things can be at the resolved address:
+- This Neovim, already listening: reused, since a second listener on the
+  same address is impossible and unnecessary.
+- Another live process: skipped with a warning. Taking the address away
+  from a running session would silently redirect Godot to a dead one.
+- A socket file with nothing behind it: left over from a Neovim that
+  crashed, removed when `config.remove_stale_socket` allows it.
+- Nothing: started.
+
+Parameters ~
+{address} `(string|nil)` Address to listen on, overriding `config.address`
+  for this call. Empty string counts as `nil`.
+
+Return ~
+`(string|nil)` Address now being listened on — which |serverstart()| may
+  report differently from the one asked for — or `nil` if nothing is.
+
+------------------------------------------------------------------------------
+                                                           *GdevServer.status()*
+                             `GdevServer.status`()
+Report the address Godot should be pointed at
+
+Pure: resolves the configured address without probing or starting anything,
+so it is safe to call from |:checkhealth| and from a mapping. Keeps
+answering while the module is disabled, since that is when it gets asked.
+
+Note that an address can be live without this module having started it —
+`nil` config resolves to the address Neovim opened at startup.
+
+Return ~
+`(table)` `{ address = string, listening = boolean }`, where `listening`
+  says whether this Neovim currently answers on `address`.
+
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.treesitter* Treesitter for Godot files
 
 MIT License Copyright (c) 2026 gdev.nvim authors
