@@ -1,3 +1,155 @@
+*gdev.format* GDScript formatting
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                    *GdevFormat*
+Features:
+- Formats Godot script buffers after they are written, by running an
+  external formatter over the saved file and reloading the buffer from it.
+  See |GdevFormat.format()|.
+- Knows both GDScript formatters in circulation and takes an arbitrary
+  command line for anything else. See |GdevFormat.get_command()|.
+- `:GdevFormat` formats on demand, including when format-on-save is off.
+- Optional indent override for people who want spaces in a language whose
+  editor writes tabs.
+
+# Setup ~
+
+This module needs a setup with `require('gdev.format').setup({})` (replace
+`{}` with your `config` table). It will create global Lua table `GdevFormat`
+which you can use for scripting or manually (with `:lua GdevFormat.*`).
+
+See |GdevFormat.config| for `config` structure and default values.
+
+You can override runtime config settings locally to buffer inside
+`vim.b.gdevformat_config` which should have same structure as
+`GdevFormat.config`.
+
+# Formatters ~
+
+Neither formatter ships with Godot or with this plugin; one of them has to
+be on `$PATH`. A missing one is reported once, not once per save.
+
+- `gdscript-formatter` (default), from GDQuest:
+  https://github.com/GDQuest/GDScript-formatter. Run with `--reorder-code`,
+  which sorts a script into Godot's documented member order.
+- `gdformat`, from the godot-gdscript-toolkit:
+  https://github.com/Scony/godot-gdscript-toolkit.
+
+Both rewrite files in place, which is why this module formats what is on
+disk rather than buffer contents.
+
+# Indentation ~
+
+Off by default, because Neovim already handles it: the bundled `gdscript`
+ftplugin sets `noexpandtab tabstop=4 softtabstop=0 shiftwidth=0` — tabs,
+which is what Godot's own editor writes and what `gdscript-formatter`
+produces. Setting `config.indent` to a number opts out of that and indents
+with that many spaces instead.
+
+Setting `vim.g.gdscript_recommended_style = 0` tells the ftplugin to leave
+indentation options alone entirely, which is the other way to take control
+of them. `config.indent` does not need it: this module's |FileType| hook
+runs after the ftplugin and wins either way.
+
+# Disabling ~
+
+To disable, set `vim.g.gdevformat_disable` (globally) or
+`vim.b.gdevformat_disable` (for a buffer) to `true`.
+
+------------------------------------------------------------------------------
+                                                            *GdevFormat.setup()*
+                          `GdevFormat.setup`({config})
+Module setup
+
+Parameters ~
+{config} `(table|nil)` Module config table. See |GdevFormat.config|.
+
+Usage ~
+>lua
+  require('gdev.format').setup() -- use default config
+  -- OR
+  require('gdev.format').setup({}) -- replace {} with your config table
+<
+------------------------------------------------------------------------------
+                                                             *GdevFormat.config*
+                              `GdevFormat.config`
+Defaults ~
+>lua
+  GdevFormat.config = {
+    -- Formatter to run: `'gdscript-formatter'`, `'gdformat'`, or `false` for no
+    -- formatting at all. Anything else belongs in `command`.
+    formatter = 'gdscript-formatter',
+
+    -- Command line to run instead of the one `formatter` implies, as a string
+    -- (split on whitespace) or an argv array. The file path is appended to it.
+    -- Set, it wins over `formatter`, including over `formatter = false`.
+    command = nil,
+
+    -- Whether to format Godot script buffers after writing them
+    autoformat = true,
+
+    -- Number of spaces to indent Godot scripts with, or `false` to leave
+    -- indentation options untouched. `false` is not "no indentation": Neovim's
+    -- bundled `gdscript` ftplugin already sets up tabs 4 columns wide, matching
+    -- Godot's editor and both formatters. A number here overrides that with
+    -- spaces, in this plugin's buffers only. See |GdevFormat| for how it relates
+    -- to `vim.g.gdscript_recommended_style`.
+    indent = false,
+  }
+<
+------------------------------------------------------------------------------
+                                                           *GdevFormat.format()*
+                     `GdevFormat.format`({buf_id}, {opts})
+Format a buffer's file
+
+Runs the formatter over the file on disk and, once it succeeds, reloads the
+buffer with |:checktime|. Asynchronous: it returns as soon as the process is
+started, and reports failure through |vim.notify()| with whatever the
+formatter wrote to stderr.
+
+GDScript formatters rewrite files in place and do not read stdin, so buffer
+contents never reach them. A modified buffer is therefore refused instead of
+being formatted from its stale saved state.
+
+Any buffer backed by a file is accepted. Restricting to Godot filetypes is
+the on-save hook's business, not this function's, so `:GdevFormat` stays
+usable in a buffer whose filetype was never detected.
+
+Parameters ~
+{buf_id} `(integer|nil)` Buffer handle, or 0 / `nil` for current buffer.
+{opts} `(table|nil)` Options overriding `GdevFormat.config` for this call.
+
+Return ~
+`(boolean)` Whether a formatter process was started.
+
+------------------------------------------------------------------------------
+                                                      *GdevFormat.get_command()*
+                   `GdevFormat.get_command`({buf_id}, {opts})
+Resolve the formatter command line
+
+The argv |GdevFormat.format()| runs, without the file path it appends. Use
+it to answer "what will actually run", and to find the executable a health
+check should look for.
+
+Keeps working while the module is disabled, since that is when it tends to
+be asked.
+
+Note that a `command` array in `vim.b.gdevformat_config` merges with the
+configured one element by element rather than replacing it, per
+|vim.tbl_deep_extend()|. The string form has no such wrinkle.
+
+Parameters ~
+{buf_id} `(integer|nil)` Buffer handle, or 0 / `nil` for current buffer.
+{opts} `(table|nil)` Options overriding `GdevFormat.config` for this call.
+
+Return ~
+`(table|nil)` Argv array, or `nil` when formatting is turned off.
+
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.lsp* Godot editor language server
 
 MIT License Copyright (c) 2026 gdev.nvim authors

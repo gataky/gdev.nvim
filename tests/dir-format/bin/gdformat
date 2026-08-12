@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fake `gdformat` for the 'gdev.format' suite. Same behavior as the fake
+# `gdscript-formatter`; the marker it writes is what tells the two apart.
+[ -n "$GDEV_FORMAT_ARGV_LOG" ] && printf '%s\n' "${0##*/}" "$@" >>"$GDEV_FORMAT_ARGV_LOG"
+for target in "$@"; do :; done
+[ -n "$target" ] || exit 0
+printf 'extends Node\n# formatted by %s\n' "${0##*/}" >"$target"

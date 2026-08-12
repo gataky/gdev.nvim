@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fake formatter for the 'gdev.format' suite that always exits non-zero and
+# leaves the file alone. What it writes is driven by the environment, so one
+# script covers the stderr, stdout and no-output paths of the failure report.
+[ -n "$GDEV_FORMAT_ARGV_LOG" ] && printf '%s\n' "${0##*/}" "$@" >>"$GDEV_FORMAT_ARGV_LOG"
+[ -n "$GDEV_FORMAT_STDERR" ] && printf '%s\n' "$GDEV_FORMAT_STDERR" >&2
+[ -n "$GDEV_FORMAT_STDOUT" ] && printf '%s\n' "$GDEV_FORMAT_STDOUT"
+exit 1
