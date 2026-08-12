@@ -11,7 +11,15 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(python3 *)",
       "Bash(ps *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(command -v godot)",
+      "Read(//Applications/**)",
+      "Bash(command -v curl)",
+      "Bash(curl -sf \"file:///tmp/gdev-curl-probe.txt\")",
+      "Bash(rm -f /tmp/gdev-curl-probe.txt)",
+      "Bash(curl --version)",
+      "Bash(curl -fsSL --max-time 10.000 \"file:///private/tmp/claude-502/-Users-jeffor-Documents-gdev-nvim/2d9f1a6c-f70c-43cf-b2b8-ffd6cba261ff/scratchpad/t.txt\")",
+      "Bash(curl -fsSL --max-time 10.000 \"file:///nope/nothing.rst\")"
     ]
   }
 }

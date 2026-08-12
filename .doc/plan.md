@@ -610,6 +610,45 @@ function, many fixture cases under `tests/dir-docs/`. Fetch path tested with
 failing-URL case driving the browser fallback (browser opener stubbed). Cache eviction at
 `max_entries`. Renderer geometry via screenshots.
 
+**Phase 8 outcome (done).** Two commits: `lua/gdev/rst.lua` and `lua/gdev/docs.lua`.
+
+**The rst converter lives in `lua/gdev/rst.lua`** — internal, own suite, following the
+`gdev.project` precedent — rather than on the public table. `.doc/testing.md` forbids tests
+reaching into `H`, and the conversion is a heuristic reading aid for Godot's rst dialect whose
+exact whitespace output will keep changing; publishing it would freeze that as API. It has one
+consumer today, which is the honest cost.
+
+**Where the reference is wrong (verified independently):**
+
+- **Its converter never detects a single heading.** The underline test is
+  `next_line:match('^([=~%^"%-])%1+$')`, and a Lua back-reference cannot be quantified. Run
+  directly against the reference's own pattern, `====`, `----`, `~~~~`, `^^^^` and even `=+` all
+  return `nil` — it matches nothing at all, at both call sites. Every class title and every
+  `Description` / `Properties` / `Method Descriptions` heading falls through into a paragraph.
+  Ours uses `vim.pesc(marker)` plus a length check.
+- **`spec_docs_render.lua` is not a spec of the conversion.** It holds eight renderer-dispatch
+  cases; `grep -rl 'to_markdown' .ref/godotdev.nvim/tests/` returns nothing. The reference's
+  converter has no tests at all, so the plan's "verify against `spec_docs_render.lua` cases" was
+  not achievable — the suite was written from behavior plus real class-page structure.
+- Its final `gsub('\n[ \t]+', '\n')` strips indentation from *every* line including fenced code,
+  and `consume_indented_block(..., '   ')` hardcodes 3 spaces where Godot writes 4 — so its code
+  fences come out empty and the code leaks into a paragraph.
+- `--max-time` takes **seconds**; the reference passes `timeout_ms` verbatim, a ~3-hour timeout.
+- `vim.ui.open` failure is `nil, err`; the reference tests `ok == false`, which never happens.
+- **Not reproduced:** the reference's HTML-page verification and `classes/index.html` scrape.
+  Slug-only URL construction is correct (`class_animatedsprite2d.rst` really is the file name)
+  and removes two network round-trips per lookup.
+
+**Screenshots worked here too**, and killed two mutations nothing else caught ("float positioned
+at the top-left" and "window options not applied"). Two rules made it safe, extending Phase 7's:
+capture only stable content (the `Docs: https://...` header, not a `file://` fixture path that
+would make the reference machine-specific), and pass `ignore_attr = true` when the buffer has a
+`filetype` — `markdown` pulls in Neovim's bundled highlighting, the exact runtime file Phase 7 got
+burned by. Geometry, border and title are asserted through `nvim_win_get_config()`.
+
+**Version note:** Neovim 0.12.4 no longer rejects a float `title` without a border, so the guard
+against that is insurance for 0.11 — which CI covers and this machine does not.
+
 ## Phase 9 — `gdev.health`
 
 **Goal:** `:checkhealth gdev` diagnoses the whole environment.
@@ -693,8 +732,9 @@ Every user-visible capability of godotdev.nvim minus C#:
 - [x] Scene tree pane: icons + color groups, jump/yank/open-script/refresh/close keymaps,
       position/size config (keymaps are configurable, and instanced scenes parse correctly —
       the reference mis-reads every one of them)
-- [ ] Docs: float/buffer/browser renderers, cursor symbol default, rst→markdown, cache,
-      browser fallback, missing-symbol feedback modes
+- [x] Docs: float/buffer/browser renderers, cursor symbol default, rst→markdown, cache,
+      browser fallback, missing-symbol feedback modes (the conversion is a genuine improvement —
+      the reference's heading detection never fires and its code fences come out empty)
 - [x] Autoformat on save (gdscript-formatter default with `--reorder-code`, gdformat
       alternative, argv override, disable). Indent defaults are deliberately *not* set: Neovim's
       bundled gdscript ftplugin already does it, and the reference only documented its own.
