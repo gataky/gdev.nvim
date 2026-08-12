@@ -277,6 +277,31 @@ Config: `host = '127.0.0.1'`, `port = 6006`, `dapui = true`, `configurations = n
 as a test dependency); missing-dap path warns and doesn't error; `configurations` override
 respected; re-setup idempotent.
 
+**Phase 3 outcome (done).** Config is `host`, `port`, `dapui`, `configurations`. Notes:
+
+- **No `vim.b.gdevdap_config`.** Every field is consumed during `setup()` and never read again, so
+  a buffer-local override would do nothing — a debug session belongs to a project, not a buffer.
+  The header says so rather than advertising a knob that does not exist. This is the one template
+  element that does not instantiate here.
+- **`dapui.setup()` is deliberately not called.** The reference calls it unconditionally, which
+  silently replaces whatever configuration the user gave nvim-dap-ui. Only listeners are wired.
+- The disable protocol is **asymmetric on purpose**: it suppresses opening the UI panel but never
+  closing it, so an ending session cannot strand a panel this module opened.
+- `dapui = false` *unwires* previously registered listeners rather than merely skipping them, per
+  patterns.md's rule that `apply_config` undoes stale side effects.
+- Configurations are deep-copied into nvim-dap so later edits to `GdevDap.config` cannot reach it
+  behind the user's back.
+- C# seam is `H.register_language(filetype, adapter_name, adapter, configurations)`; the caller
+  words its own missing-nvim-dap warning.
+- `deps/nvim-dap` is a Makefile test dependency but is deliberately **not** added to
+  `scripts/minimal_init.lua`. Tests opt in per child with `set rtp+=deps/nvim-dap`, which leaves
+  the "nvim-dap is not installed" path testable for free.
+
+**Infrastructure fix from this phase.** `make gendoc` now passes an explicit `'doc/gdev.txt'`
+output path. mini.doc otherwise derives the filename from the working directory's basename, so
+generating inside a git worktree wrote `doc/<worktree-name>.txt` and then failed with
+`E154: Duplicate tag`. Anyone running phases in worktrees needs this.
+
 ## Phase 4 — `gdev.format`
 
 **Goal:** `.gd` files autoformat on save; correct indent defaults.
@@ -299,6 +324,32 @@ one that rewrites the file, one that fails with stderr; assert buffer reload, er
 argv construction (string vs list vs default `--reorder-code`), `formatter = false` disables,
 disable protocol respected.
 
+**Phase 4 outcome (done).** Config is `formatter`, `command`, `autoformat`, `indent`. Public API
+is `GdevFormat.format(buf_id, opts)` and `GdevFormat.get_command(buf_id, opts)`. Notes:
+
+- **`indent = false` by default; the module touches no indent option.** Two corrections to the
+  spec above. First, Neovim bundles `ftplugin/gdscript.vim`, which already sets
+  `noexpandtab tabstop=4 softtabstop=0 shiftwidth=0` under `g:gdscript_recommended_style`.
+  Second, **the reference never implemented the 4-space indent it documents** — grepping all of
+  `.ref/godotdev.nvim` for `expandtab|shiftwidth|tabstop|softtabstop` returns nothing outside
+  `swapfile` lines, while its README and vimdoc both claim the plugin sets buffer options. There
+  was no parity to keep. `indent = N` opts into `expandtab` at width N via a `FileType`
+  autocommand registered during `setup()`, i.e. after the ftplugin, so it wins either way.
+- The on-save hook filters by **filetype**, not a `*.gd` path pattern.
+- Missing executable warns once per executable name, and that cache resets on `setup()`.
+- `get_command()` returns the resolved argv minus the file path and keeps working while the
+  module is disabled — the query contract Phase 9 consumes.
+
+**Test-environment facts worth reusing:**
+
+- `:enew` on an empty unnamed buffer **reuses the same buffer number and drops its buffer-local
+  variables**. To put a `b:` var on a non-current buffer, use `nvim_create_buf`.
+- `vim.system` passes argv[0] to a `#!` script as the PATH-resolved absolute path, not the name
+  invoked, so fake executables should log `${0##*/}`.
+- `vim.wait(timeout, cond)` in a child pumps the loop far enough to run `vim.system` callbacks
+  and their `vim.schedule` bodies, so async modules need no sleeps. Scale with
+  `helpers.get_time_const()`.
+
 ## Phase 5 — `gdev.server`
 
 **Goal:** Godot's "external editor" integration can open files in this Neovim instance.
@@ -317,6 +368,38 @@ Config: `address = nil` (nil → `v:servername` if listening, else `/tmp/godot.n
 
 **Tests:** address resolution matrix (explicit > servername > default); stale-socket cleanup
 using a dead socket file fixture; already-running short-circuit; autostart autocmd presence.
+
+**Phase 5 outcome (done).** Config is `address`, `autostart`, `remove_stale_socket`, `filetypes`
+(the C# seam — add `'cs'`). Public API is `GdevServer.start(address)` and `GdevServer.status()`.
+The spec above was wrong in one load-bearing way:
+
+- **`vim.v.servername` is never empty.** Neovim opens an address at startup regardless — verified
+  under `--clean --headless` and even `--listen ''`. So "if listening elsewhere, WARN and skip"
+  would have refused every configured address and made the module a permanent no-op. What is
+  implemented instead: `config.address` outranks the startup address, and starting *adds* a
+  second listen address (Neovim supports several at once — verified). Warn-and-skip is kept where
+  it is real: when **another process** already answers on the target, which would otherwise
+  silently point Godot at someone else's session.
+- Resolution and the "am I listening?" check go through **`vim.fn.serverlist()`**, never
+  `vim.v.servername`, which Neovim's own docs define as merely the first entry of that list.
+  `serverlist()` is also correct when several addresses are open.
+- **The reference's `start_editor_server.lua` is dead code on modern Neovim** for this same
+  reason: it resolves `v:servername` before the configured address, so it always reports "already
+  running" and never reaches its own stale-socket or `serverstart` paths.
+- **Neovim 0.12 already recovers stale sockets itself** (probe, "Removing stale socket", retry).
+  `remove_stale_socket` still earns its place on 0.11, the project minimum, and adds a
+  notification and an off switch — but it cannot suppress Neovim 0.12's own recovery.
+- The `/tmp/godot.nvim` fallback is effectively unreachable, since the startup-address rung always
+  resolves first. Kept and documented rather than removed.
+- `vim.tbl_deep_extend` **already replaces list-like tables wholesale** rather than merging them
+  index-wise (0.11 and 0.12 alike), so config lists such as `filetypes` need no special handling.
+  Mutation testing found the special case written for this was dead code, and it was deleted.
+
+**For Phase 10 docs:** the working Godot setup is Editor Settings → Text Editor → External → Use
+External Editor, `Exec Path` = `nvim` or a wrapper, `Exec Flags` = `--server <address> --remote
+{file}`. Godot's `{line}` / `{col}` do **not** work with `--remote` — it opens a buffer literally
+named `+3`. Cursor placement needs `--remote-send` or `nvr`, which is the wrapper's job (as is
+raising the terminal).
 
 ## Phase 6 — `gdev.run`
 
@@ -413,6 +496,12 @@ failing-URL case driving the browser fallback (browser opener stubbed). Cache ev
   read-only (no `setup()` needed) and reads other modules' state via their globals
   (`_G.GdevLsp` etc.) when present, falling back to defaults. Document this sanctioned
   deviation from the module template in the module header.
+- **Query functions to consume** (each is pure, side-effect free, and deliberately keeps working
+  while its module is disabled — that is when health gets asked):
+  `GdevTreesitter.parser_status()` → per-filetype parser and whether it is installed;
+  `GdevServer.status()` → `{ address, listening }`; `GdevFormat.get_command()` → resolved argv
+  whose `[1]` is the executable to probe. `gdev.dap` has none by design — read
+  `_G.GdevDap.config.port` and `pcall(require, 'dap')` directly.
 - Sections (mirror reference): Godot binary + version (warn < 4.3); plugin deps
   (nvim-dap, nvim-dap-ui) as warnings not errors; treesitter parsers via
   `GdevTreesitter.parser_status()` (warn per missing parser, with the name to install, since
@@ -473,16 +562,17 @@ Every user-visible capability of godotdev.nvim minus C#:
 - [x] Inlay hints (opt-in, capability-gated, per-buffer toggle command)
 - [x] gdshader filetype + treesitter highlighting (built-in `vim.treesitter`; parsers are
       user-supplied rather than installed, and `parser_status()` reports what is missing)
-- [ ] DAP: launch-scene debugging; dap-ui auto open/close
+- [x] DAP: launch-scene debugging; dap-ui auto open/close
 - [ ] Run: project / current scene / scene by path / picker; script→scene resolution with
       multi-match picker
 - [ ] Run console capture (buffer/float, reopen command, single-run guard)
-- [ ] Editor server: start command, autostart option, address pinning, stale socket cleanup
+- [x] Editor server: start command, autostart option, address pinning, stale socket cleanup
 - [ ] Scene tree pane: icons + color groups, jump/yank/open-script/refresh/close keymaps,
       position/size config
 - [ ] Docs: float/buffer/browser renderers, cursor symbol default, rst→markdown, cache,
       browser fallback, missing-symbol feedback modes
-- [ ] Autoformat on save (gdscript-formatter default with `--reorder-code`, gdformat
-      alternative, argv override, disable); 4-wide indent buffer defaults
+- [x] Autoformat on save (gdscript-formatter default with `--reorder-code`, gdformat
+      alternative, argv override, disable). Indent defaults are deliberately *not* set: Neovim's
+      bundled gdscript ftplugin already does it, and the reference only documented its own.
 - [ ] `:checkhealth gdev` covering all of the above
 - [ ] README + vimdoc parity with the reference's documented workflows
