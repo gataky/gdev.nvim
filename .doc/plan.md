@@ -439,6 +439,65 @@ of `.tscn` files, scripts attached); fake `godot` script capturing argv to a fil
 root discovery, `res://` normalization (incl. rejection outside project), scene-for-script
 matching (0/1/many), console buffer contents and single-run guard, disable protocol.
 
+**Phase 6 outcome (done).** Shipped as two commits: `lua/gdev/project.lua` (shared, internal)
+and `lua/gdev/run.lua`.
+
+### `gdev.project` — the API Phase 7 consumes unchanged
+
+Two rules shape it: **the root is always an argument**, so a command resolves it once and every
+later answer is consistent; and **nothing prompts, notifies or raises** — pickers and wording
+belong to the modules.
+
+| Function | Contract |
+|---|---|
+| `find_root(path)` | Directory holding `project.godot` above `path`, else `nil`. File or directory; `nil`/`''` starts at cwd. **Absolute and normalized**, so `==` comparisons work. |
+| `to_res(root, path)` | `path` as a `res://` name, else `nil` when outside `root`. Accepts absolute, root-relative or `res://` — the last is **re-resolved, not trusted**. `root` itself → `'res://'`. File need not exist. |
+| `to_path(root, res)` | Inverse. `nil` unless `res` resolves inside `root`. Exists **for Phase 7** (reading `.tscn`, opening attached scripts); tested, but `run` has no consumer. |
+| `list_scenes(root)` | Every `.tscn` as sorted `res://` names. Skips dot-directories, so Godot's `.godot/` cache is ignored. |
+| `scenes_with_script(root, script)` | Sorted `res://` names of scenes referencing `script`. `{}` means both "unused" and "outside the project" — call `to_res` first if you must tell them apart. |
+| `is_scene(path)` | Ends in `.tscn`. |
+| `is_script(path, extensions)` | Bare dotless extensions; `nil` → `{ 'gd' }`. **The C# seam** — every script-driven entry point routes through here. |
+
+Two traps it encodes: script matching needs the **quoted** `res://` name, or `res://player.gd`
+also matches a scene referencing `res://player.gdshader`; and `find_root` must return absolute,
+because `vim.fs.find()` answers in the shape it was asked and a relative root silently fails
+every containment check against buffer names.
+
+### `gdev.run`
+
+Config `godot`, `script_extensions`, `console = { enabled, renderer, buffer = { position, size },
+float = { width, height, border } }`; fractions validate within `(0, 1]`. Public: `run_project`,
+`run_current_scene`, `run_scene`, `pick_scene`, `show_console`, and the query
+`status(opts)` → `{ root, godot, executable }` for Phase 9.
+
+**Where the spec was wrong:**
+
+- **`:GdevRunCurrentScene` cannot reject a scene outside the project.** The root is found by
+  walking up from that very buffer, so `to_res` can never fail there. Both guards written to the
+  spec were dead code and were deleted; only `run_scene {path}` has a reachable rejection.
+- **The reference's focus-stealing console is a bug.** With the console focused, the *next*
+  command resolves its project from `gdev://run-console`. A run now opens the console **without
+  taking the cursor**; `:GdevRunConsole` focuses deliberately.
+- **`res://` pass-through is unsafe.** The reference returns any `res://` string verbatim, so
+  `res://../elsewhere.tscn` escapes the project. Ours re-resolves and rejects.
+- `vim.system` **raises synchronously on ENOENT**, so the `executable()` probe is load-bearing,
+  not cosmetic.
+
+**For Phase 7:** a scene-tree pane is a `nofile` buffer, so it hits the same trap the console did
+— copy the `buftype ~= ''` guard before resolving a project from the current buffer. There is no
+"outside the project" error path for the current-buffer route, for the reason above; don't write
+one. Build your own `tests/dir-scenetree/`; `dir-run/` is shaped around run's cases.
+`child.expect_screenshot()` is still unused, so Phase 7 is its first deliberate use.
+
+**Also fixed in this phase (infrastructure).** Emptying `'packpath'` in
+`scripts/minimal_init.lua` — added during Phase 1's hermeticity work — hid Neovim's own bundled
+packages, so every child failed startup with `E919 ... pack/*/opt/netrw`. An erroring child does
+not exit cleanly, so mini.test's one-second `jobwait` on teardown timed out **once per case**:
+1047ms per restart against 26ms, and the whole suite went from 361s to 14s. Nothing caught it
+because nothing was broken — the tests passed, only slowly. Filtering `'runtimepath'` is what
+actually provides hermeticity. `tests/test_infrastructure.lua` now asserts the child starts with
+an empty `v:errmsg`.
+
 ## Phase 7 — `gdev.scenetree`
 
 **Goal:** static scene-tree pane for the current scene. Largest single module; budget
@@ -572,9 +631,9 @@ Every user-visible capability of godotdev.nvim minus C#:
 - [x] gdshader filetype + treesitter highlighting (built-in `vim.treesitter`; parsers are
       user-supplied rather than installed, and `parser_status()` reports what is missing)
 - [x] DAP: launch-scene debugging; dap-ui auto open/close
-- [ ] Run: project / current scene / scene by path / picker; script→scene resolution with
+- [x] Run: project / current scene / scene by path / picker; script→scene resolution with
       multi-match picker
-- [ ] Run console capture (buffer/float, reopen command, single-run guard)
+- [x] Run console capture (buffer/float, reopen command, single-run guard)
 - [x] Editor server: start command, autostart option, address pinning, stale socket cleanup
 - [ ] Scene tree pane: icons + color groups, jump/yank/open-script/refresh/close keymaps,
       position/size config
