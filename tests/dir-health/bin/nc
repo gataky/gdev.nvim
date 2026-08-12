@@ -1,0 +1,12 @@
+#!/bin/sh
+# Fake port prober for the 'gdev.health' suite. Called as `nc -z -w 1 <host>
+# <port>`, so the port is the last argument; it "answers" for the ports listed
+# in `GDEV_HEALTH_OPEN_PORTS` and refuses every other one.
+#
+# A real probe cannot be used: whether 6005 answers depends on whether a Godot
+# editor happens to be open on the machine running the suite.
+for port in "$@"; do :; done
+case " $GDEV_HEALTH_OPEN_PORTS " in
+  *" $port "*) exit 0 ;;
+esac
+exit 1

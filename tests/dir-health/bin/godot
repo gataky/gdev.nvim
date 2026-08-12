@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fake Godot for the 'gdev.health' suite. No Godot is installed on the machines
+# this runs on, so the version section is driven from the environment instead:
+# `GDEV_HEALTH_VERSION` is what `--version` prints, `GDEV_HEALTH_EXIT` the code
+# it exits with.
+[ -n "$GDEV_HEALTH_VERSION" ] && printf '%s\n' "$GDEV_HEALTH_VERSION"
+exit "${GDEV_HEALTH_EXIT:-0}"

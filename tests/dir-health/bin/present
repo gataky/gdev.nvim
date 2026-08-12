@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stands in for any executable health only looks up rather than runs -- `curl`,
+# a formatter. Installed under the name being tested, so `${0##*/}` is how it
+# knows which one it is; `vim.system` would hand it the resolved absolute path.
+[ -n "$GDEV_HEALTH_PRESENT_LOG" ] && printf '%s\n' "${0##*/}" >>"$GDEV_HEALTH_PRESENT_LOG"
+exit 0

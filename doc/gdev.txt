@@ -462,6 +462,59 @@ Return ~
 
 ==============================================================================
 ------------------------------------------------------------------------------
+*gdev.health* Environment diagnosis
+
+MIT License Copyright (c) 2026 gdev.nvim authors
+
+------------------------------------------------------------------------------
+                                                                    *GdevHealth*
+Features:
+- `:checkhealth gdev` reports, section by section, whether what the other
+  modules need is actually there: the Godot binary and its version, the two
+  optional plugins, treesitter parsers, the editor's language server and
+  debug adapter ports, the Neovim server Godot opens files through, `curl`
+  for the class reference, and the GDScript formatter.
+- Every finding says what to do about it, and levels are meant literally.
+  Soft dependencies warn; only something genuinely broken is an error.
+
+# Setup ~
+
+None, deliberately. This module breaks the pattern the rest of the plugin
+follows -- no `setup()`, no `config`, no `GdevHealth` global, no
+autocommands, nothing to disable. |:checkhealth| asks exactly one thing of a
+plugin, a `lua/<plugin>/health.lua` returning a table with a `check()`
+function, and a diagnostic that had to be configured before it could
+diagnose anything would be a poor diagnostic.
+
+# What it reads ~
+
+The state of every other module, through the global table that module's
+`setup()` exports (`GdevRun`, `GdevDocs`, ...) and the pure status query on
+it. A module that was never set up is reported as such rather than guessed
+at: describing defaults this session is not running would be worse than no
+answer at all.
+
+So `:checkhealth gdev` describes the session it runs in, not the plugin in
+the abstract. Run it once your plugin manager has loaded and configured the
+modules you actually use.
+
+# What it runs ~
+
+`godot --version` and, per port, `nc -z`. Both are waited on, so a report
+takes about a second when the Godot editor is not running. Without `nc`
+installed the two port checks say so instead of guessing.
+
+------------------------------------------------------------------------------
+                                                            *GdevHealth.check()*
+                              `GdevHealth.check`()
+Run every check
+
+The entry point |:checkhealth| calls; use `:checkhealth gdev` rather than
+calling this directly. Reports through |vim.health| and returns nothing.
+
+
+==============================================================================
+------------------------------------------------------------------------------
 *gdev.lsp* Godot editor language server
 
 MIT License Copyright (c) 2026 gdev.nvim authors
