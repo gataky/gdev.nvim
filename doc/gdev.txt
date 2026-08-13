@@ -979,8 +979,8 @@ Features:
   |GdevScenetree.open()|.
 - Resolves the scene from the buffer you are in: the scene itself, or the
   scene that uses the script you are editing.
-- Jumps from a node to its `[node ...]` line in the scene file, to its
-  attached script, or to the scene it instances.
+- Jumps from a node to its `[node ...]` line in the scene file, to the script
+  behind it -- including one an instanced scene attaches -- or to that scene.
 - Parses without Godot running: it reads the file, so it answers for a
   scene you have never opened in the editor. See |GdevScenetree.get_nodes()|.
 
@@ -1026,7 +1026,8 @@ Default mappings, all buffer-local and all configurable through
 - `<CR>` - jump to this node's `[node ...]` line in the scene file.
 - `y`    - yank the node's path (what Godot's `get_node()` takes) into the
            unnamed register.
-- `g`    - open the node's attached script, or the scene it instances.
+- `g`    - open the script behind the node: its own, or the one the scene it
+           instances attaches to its root. Falls back to that scene.
 - `r`    - reparse the scene file.
 - `q`    - close the pane. The buffer survives, so reopening is instant.
 
@@ -1205,8 +1206,12 @@ Return ~
                          `GdevScenetree.open_script`()
 Open what the node under the cursor points at
 
-The script attached to it, or -- for a node that instances another scene --
-that scene. Both open in the window the pane was opened from.
+The script attached to it. A node that instances another scene has none of
+its own -- Godot keeps the script with the scene, not with the node that
+instances it -- so the root of that scene is asked next, then the root of
+whatever it instances in turn. The scene itself is what opens when nothing
+along that chain is scripted. All of it in the window the pane was opened
+from.
 
 Return ~
 `(boolean)` Whether a file was opened.

@@ -1,0 +1,13 @@
+[gd_scene load_steps=4 format=3 uid="uid://bgdevcomposed"]
+
+[ext_resource type="PackedScene" uid="uid://bgdevscripted" path="res://scenes/Scripted.tscn" id="1_scripted"]
+[ext_resource type="PackedScene" uid="uid://bgdevinherited" path="res://scenes/Inherited.tscn" id="2_inherited"]
+[ext_resource type="PackedScene" uid="uid://bgdevflat" path="res://Flat.tscn" id="3_flat"]
+
+[node name="Game" type="Node2D"]
+
+[node name="Direct" parent="." instance=ExtResource("1_scripted")]
+
+[node name="Chain" parent="." instance=ExtResource("2_inherited")]
+
+[node name="Plain" parent="." instance=ExtResource("3_flat")]

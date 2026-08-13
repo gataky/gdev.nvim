@@ -8,8 +8,8 @@
 ---   |GdevScenetree.open()|.
 --- - Resolves the scene from the buffer you are in: the scene itself, or the
 ---   scene that uses the script you are editing.
---- - Jumps from a node to its `[node ...]` line in the scene file, to its
----   attached script, or to the scene it instances.
+--- - Jumps from a node to its `[node ...]` line in the scene file, to the script
+---   behind it -- including one an instanced scene attaches -- or to that scene.
 --- - Parses without Godot running: it reads the file, so it answers for a
 ---   scene you have never opened in the editor. See |GdevScenetree.get_nodes()|.
 ---
@@ -55,7 +55,8 @@
 --- - `<CR>` - jump to this node's `[node ...]` line in the scene file.
 --- - `y`    - yank the node's path (what Godot's `get_node()` takes) into the
 ---            unnamed register.
---- - `g`    - open the node's attached script, or the scene it instances.
+--- - `g`    - open the script behind the node: its own, or the one the scene it
+---            instances attaches to its root. Falls back to that scene.
 --- - `r`    - reparse the scene file.
 --- - `q`    - close the pane. The buffer survives, so reopening is instant.
 ---
@@ -357,8 +358,12 @@ end
 
 --- Open what the node under the cursor points at
 ---
---- The script attached to it, or -- for a node that instances another scene --
---- that scene. Both open in the window the pane was opened from.
+--- The script attached to it. A node that instances another scene has none of
+--- its own -- Godot keeps the script with the scene, not with the node that
+--- instances it -- so the root of that scene is asked next, then the root of
+--- whatever it instances in turn. The scene itself is what opens when nothing
+--- along that chain is scripted. All of it in the window the pane was opened
+--- from.
 ---
 ---@return boolean Whether a file was opened.
 GdevScenetree.open_script = function()
@@ -371,7 +376,7 @@ GdevScenetree.open_script = function()
     return false
   end
 
-  local res = node.script or node.instance
+  local res = node.script or H.instanced_script(H.pane.root, node.instance) or node.instance
   if res == nil then
     H.notify(('%s has no attached script'):format(node.path), 'WARN')
     return false
@@ -822,6 +827,53 @@ H.node = function(attrs, instance, line)
     line = line,
     instance = instance ~= nil and instance.path or nil,
   }
+end
+
+-- The script behind an instanced scene: the one its root node attaches, or the
+-- one attached along the chain of scenes each root in turn instances -- which is
+-- how Godot records an inherited scene. `nil` when nothing along that chain is
+-- scripted, or when a file on the way cannot be read; the caller falls back to
+-- opening the scene, and the reason a hand-edited scene gave nothing is not
+-- worth its own message.
+--
+-- This is the one place the module reads a second file: the parent scene records
+-- only which scene a node instances, never what that scene attaches, so the
+-- indirection is the only way to answer what the script mapping is asked. The
+-- visited set makes a cycle terminate -- Godot refuses to save one, nothing
+-- stops a hand-edited file from holding one.
+H.instanced_script = function(root, res)
+  local visited = {}
+
+  while res ~= nil do
+    local path = Project.to_path(root, res)
+    if path == nil or visited[path] or vim.fn.filereadable(path) ~= 1 then
+      return nil
+    end
+    visited[path] = true
+
+    local scene_root = H.scene_root(H.parse(vim.fn.readfile(path)))
+    if scene_root == nil then
+      return nil
+    end
+    if scene_root.script ~= nil then
+      return scene_root.script
+    end
+    res = scene_root.instance
+  end
+
+  return nil
+end
+
+-- The root of a parsed scene: the node no other node's path is relative to,
+-- which is the one with no `parent`. Godot writes it first, but nothing here
+-- depends on that.
+H.scene_root = function(nodes)
+  for _, node in ipairs(nodes) do
+    if node.parent == nil then
+      return node
+    end
+  end
+  return nil
 end
 
 -- Rendering ------------------------------------------------------------------

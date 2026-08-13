@@ -818,12 +818,46 @@ T['open_script()']['opens the attached script'] = new_set({
   end,
 })
 
-T['open_script()']['opens the scene an instance points at'] = function()
-  child.lua('_G.open("scenes/Instanced.tscn"); GdevScenetree.open()')
-  child.set_cursor(3, 0)
+T['open_script()']['opens the script an instanced scene attaches'] = new_set({
+  -- The instance itself, and one whose own root instances the scripted scene,
+  -- which is how Godot records an inherited scene. Neither `.tscn` in between
+  -- names 'shared.gd'.
+  parametrize = { { 3 }, { 4 } },
+}, {
+  test = function(pane_line)
+    child.lua('_G.open("scenes/Composed.tscn"); GdevScenetree.open()')
+    child.set_cursor(pane_line, 0)
+
+    eq(child.lua_get('GdevScenetree.open_script()'), true)
+    expect.match(child.api.nvim_buf_get_name(0), 'shared%.gd$')
+  end,
+})
+
+T['open_script()']['opens the scene an instance points at'] = new_set({
+  -- Nothing along either chain is scripted, so the scene is what is left to
+  -- open: 'Flat.tscn' attaches no script to its root
+  parametrize = {
+    { 'scenes/Instanced.tscn', 3, 'Flat%.tscn$' },
+    { 'scenes/Composed.tscn', 5, 'Flat%.tscn$' },
+  },
+}, {
+  test = function(scene, pane_line, pattern)
+    child.lua(('_G.open(%q); GdevScenetree.open()'):format(scene))
+    child.set_cursor(pane_line, 0)
+
+    eq(child.lua_get('GdevScenetree.open_script()'), true)
+    expect.match(child.api.nvim_buf_get_name(0), pattern)
+  end,
+})
+
+T['open_script()']['survives a scene that instances itself'] = function()
+  -- Godot refuses to save a cycle; a hand-edited scene can still hold one, and
+  -- walking it must end rather than hang the editor
+  child.lua('_G.open("scenes/Cycle.tscn"); GdevScenetree.open()')
+  child.set_cursor(2, 0)
 
   eq(child.lua_get('GdevScenetree.open_script()'), true)
-  expect.match(child.api.nvim_buf_get_name(0), 'Flat%.tscn$')
+  expect.match(child.api.nvim_buf_get_name(0), 'Cycle%.tscn$')
 end
 
 T['open_script()']['reports a node with nothing attached'] = function()
